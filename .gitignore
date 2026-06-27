@@ -1,0 +1,30 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+build/
+dist/
+
+# Generated diagnostic output
+logs/
+captures/
+private/
+*.candump
+vcds_*.log
+odis_*.log
+
+# Keep project data/examples tracked
+!data/*.csv
+!data/*.json
+!examples/
+!examples/sample_abs_tp20_trace.log
+
+# Editor/OS noise
+.DS_Store
+.idea/
+.vscode/

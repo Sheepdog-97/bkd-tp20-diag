@@ -1,0 +1,287 @@
+{
+  "vin": "VSSZZZ1PZ6R000000",
+  "mileage": "293470km-182353miles (example/anonymised)",
+  "chassis": "1P (1K0)",
+  "scan": "01 03 08 09 15 16 17 19 25 42 44 46 52 56 62 72",
+  "modules": {
+    "01": {
+      "name": "Engine",
+      "label": "03G-906-016-BKD.clb",
+      "part_number": "03G 906 016 AJ",
+      "hw": "028 101 173 0",
+      "component": "R4 2,0L EDC G000SG  7341",
+      "coding": "0050072",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "03": {
+      "name": "ABS Brakes",
+      "label": "1K0-907-379-MK60-F.clb",
+      "part_number": "1K0 907 379 Q",
+      "hw": "1K0 907 379 Q",
+      "component": "ESP FRONT MK60      0102",
+      "coding": "0006786",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "08": {
+      "name": "Auto HVAC",
+      "label": "1K0-907-044.lbl",
+      "part_number": "1P0 907 044",
+      "hw": "",
+      "component": "ClimatronicPQ35 001 0302",
+      "coding": "",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "09": {
+      "name": "Cent. Elect.",
+      "label": "3C0-937-049-23-H.lbl",
+      "part_number": "3C0 937 049 E",
+      "hw": "3C0 937 049 E",
+      "component": "Bordnetz-SG     H37 1002",
+      "coding": "A1880F2F00041000001D0000000000000001FF075C",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "15": {
+      "name": "Airbags",
+      "label": "3C0-909-605.lbl",
+      "part_number": "3C0 909 605 E",
+      "hw": "3C0 909 605 E",
+      "component": "T9 AIRBAG VW8   027 2421",
+      "coding": "0021561",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "16": {
+      "name": "Steering wheel",
+      "label": "1K0-953-549-MY8.lbl",
+      "part_number": "1K0 953 549 AG",
+      "hw": "1K0 953 549 AG",
+      "component": "J0527           634 0070",
+      "coding": "0002042",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "17": {
+      "name": "Instruments",
+      "label": "1K0-920-xxx-17.lbl",
+      "part_number": "1P0 920 923 C",
+      "hw": "",
+      "component": "KOMBIINSTRUMENT VO3 0618",
+      "coding": "0000401",
+      "fault_status": "1 fault(s)",
+      "faults": [
+        {
+          "code": "00003",
+          "text": "Control Module",
+          "subcode": "014",
+          "subtext": "Defective"
+        }
+      ],
+      "gateway_status": "Malfunction 0010"
+    },
+    "19": {
+      "name": "CAN Gateway",
+      "label": "1K0-907-530-V1.clb",
+      "part_number": "1K0 907 530 F",
+      "hw": "1K0 907 951",
+      "component": "Gateway         H10 0120",
+      "coding": "3D3F0340070203",
+      "fault_status": "2 fault(s)",
+      "faults": [
+        {
+          "code": "01305",
+          "text": "Databus for Infotainment",
+          "subcode": "004",
+          "subtext": "No Signal/Communication"
+        },
+        {
+          "code": "01304",
+          "text": "Radio",
+          "subcode": "004",
+          "subtext": "No Signal/Communication"
+        }
+      ],
+      "gateway_status": "Malfunction 0010"
+    },
+    "25": {
+      "name": "Immobilizer",
+      "label": "1K0-920-xxx-25.clb",
+      "part_number": "1P0 920 923 C",
+      "hw": "",
+      "component": "IMMO            VO3 0618",
+      "coding": "",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "42": {
+      "name": "Door Elect, Driver",
+      "label": "1K0-959-701-MAX2.lbl",
+      "part_number": "1T0 959 701 C",
+      "hw": "",
+      "component": "Tuer-SG         024 2452",
+      "coding": "0000688",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "44": {
+      "name": "Steering Assist",
+      "label": "1Kx-909-144-G2V2.clb",
+      "part_number": "1K2 909 144 J",
+      "hw": "",
+      "component": "EPS_ZFLS Kl.4   D04 1606",
+      "coding": "",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "46": {
+      "name": "Central Conv.",
+      "label": "1K0-959-433-MIN.clb",
+      "part_number": "1K0 959 433 AK",
+      "hw": "",
+      "component": "KSG              0401",
+      "coding": "19D0009C2D0005054CDF863004CC",
+      "fault_status": "2 fault(s)",
+      "faults": [
+        {
+          "code": "01135",
+          "text": "Interior Monitoring Sensors",
+          "subcode": "004",
+          "subtext": "No Signal/Communication"
+        },
+        {
+          "code": "01134",
+          "text": "Alarm Horn (H12)",
+          "subcode": "004",
+          "subtext": "No Signal/Communication"
+        }
+      ],
+      "gateway_status": "OK 0000"
+    },
+    "52": {
+      "name": "Door Elect, Pass.",
+      "label": "1K0-959-702-MAX2.lbl",
+      "part_number": "1T0 959 702 C",
+      "hw": "",
+      "component": "Tuer-SG         024 2452",
+      "coding": "0000688",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "56": {
+      "name": "Radio",
+      "label": "",
+      "part_number": "",
+      "hw": "",
+      "component": "",
+      "coding": "",
+      "fault_status": "Cannot be reached",
+      "faults": [],
+      "gateway_status": "Cannot be reached 1100"
+    },
+    "62": {
+      "name": "Door, Rear Left",
+      "label": "1K0-959-703-GEN2.lbl",
+      "part_number": "1K0 959 703 G",
+      "hw": "",
+      "component": "Tuer-SG         021 2420",
+      "coding": "0000144",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    },
+    "72": {
+      "name": "Door, Rear Right",
+      "label": "1K0-959-704-GEN2.lbl",
+      "part_number": "1K0 959 704 G",
+      "hw": "",
+      "component": "Tuer-SG         021 2420",
+      "coding": "0000144",
+      "fault_status": "No fault code found",
+      "faults": [],
+      "gateway_status": "OK 0000"
+    }
+  },
+  "statuses": {
+    "00": {
+      "name": "Steering Angle Sensor",
+      "status": "OK 0000"
+    },
+    "01": {
+      "name": "Engine",
+      "status": "OK 0000"
+    },
+    "03": {
+      "name": "ABS Brakes",
+      "status": "OK 0000"
+    },
+    "08": {
+      "name": "Auto HVAC",
+      "status": "OK 0000"
+    },
+    "09": {
+      "name": "Cent. Elect.",
+      "status": "OK 0000"
+    },
+    "15": {
+      "name": "Airbags",
+      "status": "OK 0000"
+    },
+    "16": {
+      "name": "Steering wheel",
+      "status": "OK 0000"
+    },
+    "17": {
+      "name": "Instruments",
+      "status": "Malfunction 0010"
+    },
+    "19": {
+      "name": "CAN Gateway",
+      "status": "Malfunction 0010"
+    },
+    "25": {
+      "name": "Immobilizer",
+      "status": "OK 0000"
+    },
+    "42": {
+      "name": "Door Elect, Driver",
+      "status": "OK 0000"
+    },
+    "44": {
+      "name": "Steering Assist",
+      "status": "OK 0000"
+    },
+    "46": {
+      "name": "Central Conv.",
+      "status": "OK 0000"
+    },
+    "52": {
+      "name": "Door Elect, Pass.",
+      "status": "OK 0000"
+    },
+    "56": {
+      "name": "Radio",
+      "status": "Cannot be reached 1100"
+    },
+    "62": {
+      "name": "Door, Rear Left",
+      "status": "OK 0000"
+    },
+    "72": {
+      "name": "Door, Rear Right",
+      "status": "OK 0000"
+    }
+  }
+}

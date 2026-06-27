@@ -1,0 +1,35 @@
+block,status,name,confidence,notes
+001,active,Idle/basic engine values,candidate,Observed non-empty in scans
+002,active,Load/pedal/basic values,candidate,Observed non-empty in scans
+003,active,MAF/EGR,high,Live values match MAF specified/actual and EGR duty pattern
+004,active,Timing/sync/thermal candidates,candidate,Observed non-empty in scans
+005,active,Engine values,candidate,Observed non-empty in scans
+006,active,Engine values,candidate,Observed non-empty in scans
+007,active,Temperature/engine values candidate,candidate,Observed non-empty in scans
+008,active,Torque/load values candidate,candidate,Observed non-empty in scans
+009,active,Torque/load values candidate,candidate,Observed non-empty in scans
+010,active,Air/pressure values candidate,candidate,Observed non-empty in scans
+011,active,Charge pressure control,high,Live values match boost specified/actual and duty pattern
+012,active,Glow plug/engine values candidate,candidate,Common VAG diesel grouping suggests glow-related but not verified on BKD here
+013,active,Idle stabilisation/injector balance candidate,candidate,Common TDI grouping suggests injector quantity deviation; verify with VCDS/BKD labels
+014,empty,Empty placeholder,observed,All fields observed empty
+015,active,Fuel consumption candidate,candidate,Common VAG diesel grouping; verify
+016,active,Engine values,candidate,Observed non-empty
+017,active,Readiness/status candidate,experimental,Readiness may live around group 017/029 on some cars; not decoded
+018,active,Engine values,candidate,Observed non-empty
+019,empty,Empty placeholder,observed,All fields observed empty
+020,active,Engine values,candidate,Observed non-empty
+021,active,Engine/status values,candidate,Observed non-empty
+022,active,Engine/status values,candidate,Observed non-empty
+023,active,Engine/status values,candidate,Observed non-empty
+024,empty,Empty placeholder,observed,All fields observed empty
+025,active,Engine/status values,candidate,Observed non-empty
+026,active,Short/text-like value,candidate,Observed non-empty short 18-byte payload
+028,active,Engine/status values,candidate,Observed non-empty
+051,active,Engine/status values,candidate,Observed non-empty
+055,active,Engine/status values,candidate,Observed non-empty
+056,active,Engine/status values,candidate,Observed non-empty
+062,active,Engine/status values,candidate,Observed non-empty
+063,active,Engine/status values,candidate,Observed non-empty
+064,active,Engine/status values,candidate,Observed non-empty
+080,text,Control module identification,high,Ross-Tech standardized 080-085 are control module identification; observed ASCII version string
