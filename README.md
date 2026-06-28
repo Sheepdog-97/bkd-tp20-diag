@@ -4,7 +4,9 @@ Linux SocketCAN diagnostic tool for VW/SEAT/Audi/Skoda TP2.0 transport carrying
 KWP2000, developed against a SEAT Leon 1P / PQ35 BKD 2.0 TDI EDC16 engine ECU.
 
 This is not a universal VAG scanner. The stable supported target is **Engine 01**
-on the BKD EDC16 ECU. Other modules are experimental and gated.
+on the BKD EDC16 ECU. Several non-engine PQ35 modules are now proven on the
+development car for **read-only identification and DTC reads**, but they remain
+explicitly gated and vehicle-specific.
 
 License: **GPL-3.0-or-later**. See `LICENSE`.
 
@@ -18,9 +20,12 @@ License: **GPL-3.0-or-later**. See `LICENSE`.
 | ECU identification | Proven |
 | Measuring blocks | Proven for useful BKD groups; labels are still conservative |
 | Live CSV logging | Working |
-| ABS 03 | VCDS-derived TP2.0/KWP read-only profile captured |
-| Gateway/cluster/HVAC/body | VCDS-derived read-only profiles for 08/17/19/46 captured |
-| Steering Assist 44 | VCDS-derived read-only profile captured; safety-sensitive |
+| 03 ABS Brakes | Read-only active DTC/ID proven; ABS/ESP clean close tested in v0.3.16 |
+| 08 Auto HVAC | Read-only active DTC/ID proven; observed DTC 00229 / 0x00E5 |
+| 17 Instruments | Read-only active DTC/ID proven |
+| 19 CAN Gateway | Read-only active DTC/ID proven; observed DTCs 01304/01305 |
+| 44 Steering Assist | Read-only active DTC/ID proven; safety-sensitive |
+| 46 Central Convenience | Read-only active DTC/ID proven; split DTC response merge tested, observed 01135 / 0x046F |
 | Airbag/immobilizer/other modules | Do not actively probe unless you understand the risk |
 
 ## Supported development vehicle profile
@@ -52,10 +57,15 @@ Engine 01 only:
   live/CSV logging
 ```
 
-Experimental non-engine module commands are refused unless you add
-`--experimental-module`. Avoid active probing of ABS, airbag, steering,
-immobilizer, and other safety/security modules until a passive VCDS/ODIS trace has
-been reviewed.
+Non-engine module commands are refused unless you add `--experimental-module`.
+The profiled 03/08/17/19/44/46 modules have been proven on the development car for
+read-only identification and DTC reads, but they are still not a universal VAG
+compatibility claim.
+
+ABS/ESP can visibly enter diagnostic communication during an active session. From
+v0.3.16 the tool performs a VCDS-like drain/close path for ABS; if ABS/ESP lamps
+remain flashing after a run, cycle ignition and stop active ABS testing until the
+exit path is reviewed.
 
 Do not operate a laptop while driving. For road logging, have a second person handle
 the laptop.
@@ -178,10 +188,11 @@ python3 -m bkd_diag.cli --no-log analyse-trace examples/sample_abs_tp20_trace.lo
 
 See `docs/TRACE_CAPTURE.md`, `docs/SPLITTER_CAPTURE_CHECKLIST.md`, and `docs/VCDS_MODULE_PROFILES.md`.
 
-## Experimental modules
+## Read-only non-engine modules
 
-Active non-engine access is still gated, but VCDS splitter captures have now
-provided read-only TP2.0/KWP profiles for 03, 08, 17, 19, 44 and 46.
+Active non-engine access is gated, but VCDS splitter captures plus live active tests
+have now proven read-only TP2.0/KWP DTC/ID workflows for 03, 08, 17, 19, 44 and 46
+on the development vehicle.
 
 ```bash
 python3 -m bkd_diag.cli module-plan
@@ -200,15 +211,17 @@ See `docs/VCDS_MODULE_PROFILES.md`.
 
 ## DTC lookup CSV
 
-The tool always reads raw DTCs even if the friendly lookup is missing.
+The tool always reads raw DTCs even if the friendly lookup is missing. Built-in
+lookup entries include the engine MAF/G70 test fault and observed live module DTCs
+from 08 HVAC, 19 Gateway, and 46 Central Convenience.
 
-Create a starter CSV:
+Create a starter CSV from the built-in lookup table:
 
 ```bash
 python3 -m bkd_diag.cli dtc-template dtcs.csv
 ```
 
-Use it:
+Use an additional CSV:
 
 ```bash
 sudo python3 -m bkd_diag.cli --iface can0 --dtc-db dtcs.csv quick

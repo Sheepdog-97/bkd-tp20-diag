@@ -20,11 +20,12 @@ cd ~/github/bkd-tp20-diag
 ## Check private files are not present
 
 ```bash
-grep -R "<REAL_VIN_OR_REG_HERE>" . || true
-find . -maxdepth 2 \( -path "./logs" -o -path "./captures" -o -path "./private" \) -print
+git grep -nE 'VSSZZZ1PZ6R006636|SEZ7Z0E3103005|pitto|openmmi|nastox|@nastox|@openmmi' || echo "No tracked personal strings found"
+git ls-files | grep -E 'logs|captures|private|\.venv|egg-info|__pycache__' || echo "No private/generated paths tracked"
 ```
 
-Replace `<REAL_VIN_OR_REG_HERE>` with anything private you want to check. It should print nothing in the public tree.
+Adjust the private-string list for your own VINs, registrations, names, handles, and
+workshop/customer details.
 
 ## Initialise git
 
@@ -66,13 +67,49 @@ git remote add origin https://github.com/YOUR_GITHUB_USERNAME/bkd-tp20-diag.git
 git push -u origin main
 ```
 
-## Tag the known-good build
-
-After the first push:
+If the remote already has an older public checkpoint, fetch and merge it rather than
+blindly overwriting it:
 
 ```bash
-git tag v0.3.8
-git push origin v0.3.8
+git fetch origin
+git log --oneline --decorate --graph --all --max-count=20
+git merge --allow-unrelated-histories origin/main -m "Merge existing GitHub main"
+```
+
+For add/add conflicts where the local tested tree should win:
+
+```bash
+git checkout --ours .
+git add .
+git commit
+```
+
+Then push:
+
+```bash
+git push -u origin main
+```
+
+## Tag known-good builds
+
+Known useful checkpoints:
+
+```text
+v0.3.8   old public/docs checkpoint
+v0.3.16  multi-module read-only diagnostics and ABS clean-exit checkpoint
+v0.3.17  observed DTC lookup entries
+```
+
+Push tags:
+
+```bash
+git push origin v0.3.16 v0.3.17
+```
+
+If a tag was corrected locally before publishing:
+
+```bash
+git push -f origin v0.3.16 v0.3.17
 ```
 
 ## Do not commit private captures

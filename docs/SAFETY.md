@@ -14,12 +14,50 @@ Supported engine operations:
 - read measuring blocks
 - live logging / CSV logging
 
-## Experimental module scope
+## Read-only non-engine module scope
 
 ABS, airbag, steering, immobilizer, gateway, cluster, and body modules are safety or
 security relevant. Active non-engine probing is gated with `--experimental-module`.
 
-Do not run experimental module commands unless you understand what the tool is sending.
+The development vehicle now has VCDS-derived and live-tested read-only profiles for:
+
+```text
+03 ABS Brakes
+08 Auto HVAC
+17 Instruments
+19 CAN Gateway
+44 Steering Assist
+46 Central Convenience
+```
+
+Allowed scope for these profiles:
+
+```text
+read identification
+read DTCs
+close the diagnostic session
+```
+
+This is still vehicle-specific evidence, not a universal VAG compatibility claim.
+Do not run experimental module commands unless you understand what the tool is
+sending.
+
+## ABS/ESP close behaviour
+
+ABS/ESP may visibly enter diagnostic communication during active access. From
+v0.3.16 the tool uses an ABS-specific graceful close path: drain transport traffic,
+answer/ACK pending control frames where needed, send TP2.0 `A8`, then drain briefly
+before closing the socket.
+
+If ABS/ESP lamps remain flashing after tool exit:
+
+```text
+cycle ignition
+stop active ABS testing
+review the close/trace behaviour before trying again
+```
+
+Do not drive if ABS/ESP warning lamps remain on unexpectedly.
 
 ## Driving
 
@@ -30,21 +68,6 @@ the laptop or set up logging before moving.
 
 This project does not currently implement coding, adaptation, basic settings, output
 tests, immobilizer functions, brake bleeding, or guided functions.
-
-
-## Non-engine module policy
-
-VCDS splitter captures have made several TP2.0/KWP read-only module profiles known,
-but active non-engine access is still deliberately gated behind
-`--experimental-module`.
-
-Allowed scope for these profiles:
-
-```text
-read identification
-read DTCs
-close the diagnostic session
-```
 
 Not allowed in this project stage:
 

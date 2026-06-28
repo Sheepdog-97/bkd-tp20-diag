@@ -1,11 +1,13 @@
 # Known-good regression test sequence
 
-This is the v0.3.7/v0.3.8 pre-splitter regression sequence. It checks offline commands, trace parsing, engine diagnostics, live CSV logging, log ownership, and experimental-module guardrails.
+This is the v0.3.17 regression sequence. It checks offline commands, trace parsing,
+engine diagnostics, VCDS-derived read-only module diagnostics, log ownership,
+experimental-module guardrails, and privacy checks.
 
 Run from the project directory:
 
 ```bash
-cd bkd_tp20_project
+cd ~/github/bkd-tp20-diag
 ```
 
 ## 1. Offline tests
@@ -13,13 +15,19 @@ cd bkd_tp20_project
 No car and no sudo required:
 
 ```bash
+python3 -m compileall -q bkd_diag
 python3 -m bkd_diag.cli --help
 python3 -m bkd_diag.cli --no-log presets
 python3 -m bkd_diag.cli --no-log map-blocks
 python3 -m bkd_diag.cli --no-log vehicle --detail
-python3 -m bkd_diag.cli --no-log module-info 01
-python3 -m bkd_diag.cli --no-log module-info 03
-python3 -m bkd_diag.cli --no-log module-info 56
+python3 -m bkd_diag.cli --no-log module-plan
+python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 01
+python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 03
+python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 08
+python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 17
+python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 19
+python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 44
+python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 46
 python3 -m bkd_diag.cli --no-log autoscan-faults
 ```
 
@@ -48,16 +56,18 @@ ReadDTC positive response
 
 ## 2. Experimental guard
 
-This should refuse and should not touch CAN:
+These should refuse and should not touch CAN:
 
 ```bash
 python3 -m bkd_diag.cli --no-iface-setup --no-log probe-module 03
+python3 -m bkd_diag.cli --no-iface-setup --no-log module-dtc 03
+python3 -m bkd_diag.cli --no-iface-setup --no-log module-ident 17
 ```
 
 Expected:
 
 ```text
-Refusing experimental non-engine module action 'probe-module' without --experimental-module
+Refusing experimental non-engine module action
 ```
 
 ## 3. Engine live smoke tests
@@ -65,11 +75,11 @@ Refusing experimental non-engine module action 'probe-module' without --experime
 Car connected, ignition on, diagnostic CAN adapter on OBD pins 6/14:
 
 ```bash
-sudo python3 -m bkd_diag.cli --iface can0 ident
-sudo python3 -m bkd_diag.cli --iface can0 quick
-sudo python3 -m bkd_diag.cli --iface can0 engine-check
-sudo python3 -m bkd_diag.cli --iface can0 block 3
-sudo python3 -m bkd_diag.cli --iface can0 block 11
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 ident
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 quick
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 engine-check
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 block 3
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 block 11
 ```
 
 Expected:
@@ -92,13 +102,13 @@ R4 2,0L EDC G000SG
 Expected no-fault quick result:
 
 ```text
-No DTCs reported by the engine ECU
+No DTCs reported by engine ECU
 ```
 
 ## 4. Live preset and CSV logging
 
 ```bash
-sudo python3 -m bkd_diag.cli --iface can0 preset boost --count 3 --interval 0.5 --csv
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 preset boost --count 3 --interval 0.5 --csv
 ls -la logs | tail
 find logs -maxdepth 1 -type f -user root -print
 ```
@@ -119,81 +129,51 @@ sudo chown -R "$USER:$USER" logs
 ## 5. Trace mode sanity
 
 ```bash
-sudo python3 -m bkd_diag.cli --iface can0 --trace block 11
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --trace block 11
 ```
 
-Expected raw TP2.0/KWP sequence includes setup, channel params, session open, block request, and close.
+Expected raw TP2.0/KWP sequence includes setup, channel params, session open, block
+request, and close.
 
-## 6. Active experimental guard with sudo
+## 6. Active read-only module regression
 
-This should still refuse unless deliberately unlocked:
+Parked only, stable battery, no VCDS/ODIS connected, one command at a time:
 
 ```bash
-sudo python3 -m bkd_diag.cli --iface can0 probe-module 03
-```
-
-Expected:
-
-```text
-Refusing experimental non-engine module action 'probe-module' without --experimental-module
-```
-
-Do not add `--experimental-module` until after passive VCDS/ODIS capture has been reviewed.
-
-## v0.3.9 profile regression checks
-
-Offline checks after applying the VCDS module profiles:
-
-```bash
-cd ~/github/bkd-tp20-diag
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-plan
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 03
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 08
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 17
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 19
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 44
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 46
-python3 -m bkd_diag.cli --no-log --no-iface-setup analyse-trace examples/sample_abs_tp20_trace.log --json-out /tmp/sample_abs_summary.json
-```
-
-The active non-engine guard should refuse without `--experimental-module`:
-
-```bash
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-dtc 03
-python3 -m bkd_diag.cli --no-log --no-iface-setup module-ident 17
-```
-
-Expected: both refuse before CAN setup.
-
-Live read-only smoke tests, parked only, with a stable battery and no VCDS connected:
-
-```bash
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 03
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 08
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 17
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 19
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 44
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 19
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 46
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 03
 ```
+
+Known-good live results on the development vehicle:
+
+```text
+08 Auto HVAC:           DTC 00229 / raw 00 E5 / status 0x62 observed
+17 Instruments:         no DTCs observed
+44 Steering Assist:     no DTCs observed
+19 CAN Gateway:         DTCs 01305 / 01304 observed
+46 Central Convenience: DTC 01135 / raw 04 6F / status 0x24 observed
+03 ABS Brakes:          no DTCs observed; ABS/ESP lamps should not remain flashing after exit
+```
+
+For ABS, expected clean-exit wording includes:
+
+```text
+ABS/ESP close: draining transport traffic before TP2.0 A8 close
+```
+
+If ABS/ESP lamps remain flashing after exit, cycle ignition and stop active ABS
+testing until the close path is reviewed.
 
 Do not run clear, coding, adaptation, basic settings or output tests as part of this
 regression set.
 
-## v0.3.10 active module confirmation
-
-After applying v0.3.10, confirm the engine baseline first, then try non-engine DTC reads one at a time:
+## 7. Privacy and publish checks
 
 ```bash
-cd ~/github/bkd-tp20-diag
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 ident
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 quick
-
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 08
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 17
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 44
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 19
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 46
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module module-dtc 03
+git grep -nE 'VSSZZZ1PZ6R006636|SEZ7Z0E3103005|pitto|openmmi|nastox|@nastox|@openmmi' || echo "No tracked personal strings found"
+git ls-files | grep -E 'logs|captures|private|\.venv|egg-info|__pycache__' || echo "No private/generated paths tracked"
 ```
-
-Expected improvement over v0.3.9: non-engine module commands should show a `VCDS-style pre-DTC ritual` before the DTC request, and should continue waiting through ECU-side `A3` and `7F xx 78 responsePending` traffic.

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.17 - Observed VAG DTC lookup entries
+
+- Adds built-in lookup entries for observed live module DTCs:
+  - 00229 / 0x00E5 from 08 Auto HVAC, exact label still unconfirmed.
+  - 01135 / 0x046F Interior Monitoring Sensors from 46 Central Convenience.
+  - 01304 / 0x0518 Radio: No signal/communication from 19 CAN Gateway.
+  - 01305 / 0x0519 Databus for Infotainment: No signal/communication from 19 CAN Gateway.
+- No transport/protocol behaviour changes from v0.3.16.
+
 ## v0.3.16 - ABS exit hygiene / module wording / 46 DTC merge polish
 
 - Fixes module DTC wording so non-engine reads no longer say "engine ECU".
