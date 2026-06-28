@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+build/
+dist/
+
+# Generated diagnostic output
+logs/
+*.log
+*.csv
+
+# Local/private captures and vehicle data
+captures/
+private/
+*.candump
+vcds_*.log
+odis_*.log
+
+# Editor/OS noise
+.DS_Store
+.idea/
+.vscode/
