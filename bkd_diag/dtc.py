@@ -15,8 +15,27 @@ BUILTIN_DTC_LOOKUP: dict[int, dict[str, str]] = {
         "description": "Mass Air Flow Sensor (G70): Signal too Low",
         "hint": "Proven on this BKD test ECU by unplugging MAF/G70.",
     },
+    229: {
+        "pcode": "",
+        "description": "Unknown Auto HVAC fault",
+        "hint": "Observed live on module 08 Auto HVAC as raw DTC 0x00E5.",
+    },
+    1135: {
+        "pcode": "",
+        "description": "Interior Monitoring Sensors",
+        "hint": "Observed live on module 46 Central Convenience as raw DTC 0x046F.",
+    },
+    1304: {
+        "pcode": "",
+        "description": "Radio: No signal/communication",
+        "hint": "Observed live on module 19 CAN Gateway as raw DTC 0x0518.",
+    },
+    1305: {
+        "pcode": "",
+        "description": "Databus for Infotainment: No signal/communication",
+        "hint": "Observed live on module 19 CAN Gateway as raw DTC 0x0519.",
+    },
 }
-
 
 STATUS_BITS = {
     0x01: "test failed now",
