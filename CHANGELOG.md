@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.1 - live dashboard helper fix
+
+- Fixed interactive live measuring-block dashboard/CSV mode raising `name 'short_field_label' is not defined`.
+- No protocol, DTC, report export, capture workflow, or measuring-value formula changes.
+
 ## v0.5.0 - active Auto-Scan reports and live-data workflow
 
 - Added direct `autoscan` command for live read-only TP2.0 module scanning.

@@ -8,7 +8,7 @@ from datetime import datetime
 
 from .dtc import DtcDatabase, dtc_count_from_response, print_dtc_response
 from .kwp import decode_negative
-from .mblocks import decode_block_response, format_block_table, live_line, known_map_lines, field_display
+from .mblocks import decode_block_response, format_block_table, live_line, known_map_lines, field_display, short_field_label
 from .labels import LabelStore
 from .bkd_data import PRESETS
 from .vehicle_profile import MODULES, find_module, profile_lines, module_probe_plan_lines, AUTOSCAN_LABELS, AUTOSCAN_COMPONENTS, AUTOSCAN_KNOWN_CURRENT_FAULTS
