@@ -337,3 +337,43 @@ See `docs/PUBLISHING.md` and `docs/GITHUB_PUSH.md`.
 
 Do not publish private `logs/`, `captures/`, VINs, registration numbers, customer
 names, workshop names, or raw traces that identify a vehicle/customer.
+
+
+## v0.5.0 workflow additions
+
+### Direct read-only Auto-Scan
+
+Run a live read-only scan from the CLI:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module --redact-private autoscan
+```
+
+Export reports:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module --redact-private autoscan \
+  --txt-out reports/autoscan.txt \
+  --json-out reports/autoscan.json \
+  --md-out reports/autoscan.md
+```
+
+The live Auto-Scan remains read-only: no clear, coding, adaptation, output tests,
+or basic settings are sent.
+
+### Live engine dashboard
+
+The interactive engine measuring-block dashboard now tracks current, min, max,
+and delta values. It can also write a CSV log from the menu.
+
+### Guided measuring-block capture
+
+Use:
+
+```text
+start -> Capture / trace tools -> Guided VCDS measuring-block capture
+```
+
+This is the preferred workflow for learning future HVAC/Instruments/Convenience
+measuring blocks from VCDS splitter captures. See
+`docs/HVAC_MEASURING_BLOCK_WORKFLOW.md`.

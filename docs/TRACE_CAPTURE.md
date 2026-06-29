@@ -49,3 +49,25 @@ The analyser highlights:
 - A3 keepalives and A8 closes
 
 It is a helper, not a full ISO-TP/TP2.0 reassembler.
+
+## Guided measuring-block capture
+
+From v0.5.0 the interactive menu can guide a VCDS measuring-block capture:
+
+```text
+start -> Capture / trace tools -> Guided VCDS measuring-block capture
+```
+
+Use one capture per module/group/scenario. Example:
+
+```text
+Address 08 Auto HVAC, group 001, blower low/high/low
+```
+
+After capture, analyse it with:
+
+```bash
+python3 -m bkd_diag.cli analyse-trace captures/<file>.log --raw --json-out captures/<file>.summary.json
+```
+
+See `docs/HVAC_MEASURING_BLOCK_WORKFLOW.md` for the recommended first target.

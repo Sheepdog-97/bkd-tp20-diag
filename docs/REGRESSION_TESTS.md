@@ -209,3 +209,28 @@ implemented messages in this build.
 git grep -nE 'YOUR_REAL_VIN|YOUR_REG|your-name|your-email|your-handle' || echo "No tracked personal strings found"
 git ls-files | grep -E 'logs|captures|private|\.venv|egg-info|__pycache__' || echo "No private/generated paths tracked"
 ```
+
+## v0.5.0 checks
+
+Direct read-only Auto-Scan should be available and able to write all report formats:
+
+```bash
+python3 -m bkd_diag.cli --no-log --no-iface-setup autoscan --help
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module --redact-private autoscan \
+  --txt-out reports/autoscan.txt \
+  --json-out reports/autoscan.json \
+  --md-out reports/autoscan.md
+```
+
+Interactive live engine measuring blocks should offer CSV logging and show current,
+min, max, and delta values in dashboard mode:
+
+```text
+start -> Engine measuring blocks -> Live air/boost preset
+```
+
+Guided VCDS measuring-block capture should be visible under:
+
+```text
+start -> Capture / trace tools -> Guided VCDS measuring-block capture
+```

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.5.0 - active Auto-Scan reports and live-data workflow
+
+- Added direct `autoscan` command for live read-only TP2.0 module scanning.
+- Added Auto-Scan report export as plain text, JSON, and Markdown.
+- Added min/max/delta tracking to the interactive live measuring-block dashboard.
+- Added CSV live logging from the interactive engine measuring-block menu.
+- Added guided VCDS measuring-block capture workflow in Capture / trace tools.
+- Added HVAC measuring-block discovery workflow documentation.
+- Kept clear/coding/adaptation scope unchanged; non-engine measuring blocks remain disabled until captured/proven.
+
 ## v0.4.6 - Correct measured-value scaling
 
 - Fixes CLI parsing so measuring block numbers like `001`, `003`, `010`, and `011` are accepted as decimal groups.

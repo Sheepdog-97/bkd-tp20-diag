@@ -1,0 +1,160 @@
+{
+  "generated_at": "2026-06-29T17:12:37",
+  "modules": [
+    {
+      "address": "01",
+      "name": "Engine",
+      "part_number": "03G 906 016 AJ",
+      "component": "",
+      "role": "BKD 2.0 TDI EDC16 engine ECU",
+      "status": "ok",
+      "dtc_count": 0,
+      "dtcs": [],
+      "raw_response": "58 00",
+      "error": "",
+      "close_note": ""
+    },
+    {
+      "address": "03",
+      "name": "ABS Brakes",
+      "part_number": "1K0 907 379 Q",
+      "component": "",
+      "role": "ABS/ESP brake electronics",
+      "status": "ok",
+      "dtc_count": 0,
+      "dtcs": [],
+      "raw_response": "58 00",
+      "error": "",
+      "close_note": "ABS/ESP graceful close path used"
+    },
+    {
+      "address": "08",
+      "name": "Auto HVAC",
+      "part_number": "1P0 907 044",
+      "component": "",
+      "role": "Climatronic/HVAC",
+      "status": "faults",
+      "dtc_count": 1,
+      "dtcs": [
+        {
+          "vag_decimal": 229,
+          "raw_hex": "0x00E5",
+          "raw_record": "00 E5 62",
+          "status": 98,
+          "status_hex": "0x62",
+          "status_bits": [
+            "failed this operation cycle",
+            "test failed since last clear",
+            "test not completed this operation cycle"
+          ],
+          "pcode": "",
+          "description": "Unknown Auto HVAC fault",
+          "hint": "Observed live on module 08 Auto HVAC as raw DTC 0x00E5."
+        }
+      ],
+      "raw_response": "58 01 00 E5 62",
+      "error": "",
+      "close_note": ""
+    },
+    {
+      "address": "17",
+      "name": "Instruments",
+      "part_number": "1P0 920 923 C",
+      "component": "",
+      "role": "Instrument cluster",
+      "status": "ok",
+      "dtc_count": 0,
+      "dtcs": [],
+      "raw_response": "58 00",
+      "error": "",
+      "close_note": ""
+    },
+    {
+      "address": "19",
+      "name": "CAN Gateway",
+      "part_number": "1K0 907 530 F",
+      "component": "",
+      "role": "CAN gateway",
+      "status": "faults",
+      "dtc_count": 2,
+      "dtcs": [
+        {
+          "vag_decimal": 1305,
+          "raw_hex": "0x0519",
+          "raw_record": "05 19 64",
+          "status": 100,
+          "status_hex": "0x64",
+          "status_bits": [
+            "pending DTC",
+            "test failed since last clear",
+            "test not completed this operation cycle"
+          ],
+          "pcode": "",
+          "description": "Databus for Infotainment: No signal/communication",
+          "hint": "Observed live on module 19 CAN Gateway as raw DTC 0x0519."
+        },
+        {
+          "vag_decimal": 1304,
+          "raw_hex": "0x0518",
+          "raw_record": "05 18 64",
+          "status": 100,
+          "status_hex": "0x64",
+          "status_bits": [
+            "pending DTC",
+            "test failed since last clear",
+            "test not completed this operation cycle"
+          ],
+          "pcode": "",
+          "description": "Radio: No signal/communication",
+          "hint": "Observed live on module 19 CAN Gateway as raw DTC 0x0518."
+        }
+      ],
+      "raw_response": "58 02 05 19 64 05 18 64",
+      "error": "",
+      "close_note": ""
+    },
+    {
+      "address": "44",
+      "name": "Steering Assist",
+      "part_number": "1K2 909 144 J",
+      "component": "",
+      "role": "Electromechanical steering assist",
+      "status": "ok",
+      "dtc_count": 0,
+      "dtcs": [],
+      "raw_response": "58 00",
+      "error": "",
+      "close_note": ""
+    },
+    {
+      "address": "46",
+      "name": "Central Convenience",
+      "part_number": "1K0 959 433 AK",
+      "component": "",
+      "role": "Comfort/convenience module",
+      "status": "faults",
+      "dtc_count": 1,
+      "dtcs": [
+        {
+          "vag_decimal": 1135,
+          "raw_hex": "0x046F",
+          "raw_record": "04 6F 24",
+          "status": 36,
+          "status_hex": "0x24",
+          "status_bits": [
+            "pending DTC",
+            "test failed since last clear"
+          ],
+          "pcode": "",
+          "description": "Interior Monitoring Sensors",
+          "hint": "Observed live on module 46 Central Convenience as raw DTC 0x046F."
+        }
+      ],
+      "raw_response": "58 01 04 6F 24",
+      "error": "",
+      "close_note": ""
+    }
+  ],
+  "scope": "read-only VW TP2.0/KWP2000 over CAN",
+  "redacted": true
+}

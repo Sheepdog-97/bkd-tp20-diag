@@ -1,0 +1,41 @@
+BKD TP2.0/KWP read-only Auto-Scan
+Generated: 2026-06-29T17:12:37
+Scope: read-only VW TP2.0/KWP2000 over CAN
+Private identifiers: redacted
+
+01 Engine
+  Part No: 03G 906 016 AJ
+  DTCs: none
+
+03 ABS Brakes
+  Part No: 1K0 907 379 Q
+  DTCs: none
+  Close: ABS/ESP graceful close path used
+
+08 Auto HVAC
+  Part No: 1P0 907 044
+  DTCs: 1 record(s)
+  00229 / 0x00E5: Unknown Auto HVAC fault  status=0x62
+    status bits: failed this operation cycle, test failed since last clear, test not completed this operation cycle
+
+17 Instruments
+  Part No: 1P0 920 923 C
+  DTCs: none
+
+19 CAN Gateway
+  Part No: 1K0 907 530 F
+  DTCs: 2 record(s)
+  01305 / 0x0519: Databus for Infotainment: No signal/communication  status=0x64
+    status bits: pending DTC, test failed since last clear, test not completed this operation cycle
+  01304 / 0x0518: Radio: No signal/communication  status=0x64
+    status bits: pending DTC, test failed since last clear, test not completed this operation cycle
+
+44 Steering Assist
+  Part No: 1K2 909 144 J
+  DTCs: none
+
+46 Central Convenience
+  Part No: 1K0 959 433 AK
+  DTCs: 1 record(s)
+  01135 / 0x046F: Interior Monitoring Sensors  status=0x24
+    status bits: pending DTC, test failed since last clear

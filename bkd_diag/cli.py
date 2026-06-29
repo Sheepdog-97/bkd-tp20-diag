@@ -8,7 +8,7 @@ from .commands import (
     run_block, run_clear, run_cmd, run_freeze_probe, run_ident, run_live,
     run_map_blocks, run_quick, run_read, run_readiness_probe, run_scan_blocks, run_selftest,
     run_list_presets, run_preset, run_vehicle_profile, run_module_info, run_module_probe_plan, run_autoscan_summary, run_autoscan_faults,
-    run_engine_check, run_trace_analysis
+    run_engine_check, run_trace_analysis, run_active_autoscan
 )
 from .dtc import DtcDatabase
 from .reporting import Colour, CsvLiveLogger, Reporter, RunLogger
@@ -59,6 +59,13 @@ def build_parser() -> argparse.ArgumentParser:
     quick_p.add_argument("--no-prompt", action="store_true")
 
     sub.add_parser("start", help="Interactive workshop-style menu")
+
+    active_autoscan_p = sub.add_parser("autoscan", help="Run live read-only Auto-Scan against proven TP2.0 modules")
+    active_autoscan_p.add_argument("--txt-out", "--text-out", help="Write plain-text report to this path")
+    active_autoscan_p.add_argument("--json-out", help="Write JSON report to this path")
+    active_autoscan_p.add_argument("--md-out", "--markdown-out", help="Write Markdown report to this path")
+    active_autoscan_p.add_argument("--modules", help="Comma/space-separated module addresses; default is all proven modules with --experimental-module, otherwise 01 only")
+
     sub.add_parser("ident", help="Read ECU identification")
     sub.add_parser("engine-check", help="Read-only Engine 01 DTC/ID/live-data snapshot")
     sub.add_parser("mot-check", help="Alias for engine-check")
@@ -277,8 +284,32 @@ def main(argv: list[str] | None = None) -> int:
                 db=db,
                 labels=labels,
                 bitrate=args.bitrate,
+                log_dir=args.log_dir,
             )
             run_interactive_start(ctx, reporter)
+            return 0
+
+        if args.action == "autoscan":
+            if not args.no_iface_setup:
+                reporter.header("CAN interface setup")
+                ensure_can_interface(args.iface, args.bitrate, reporter, force=args.force_iface_setup)
+            else:
+                reporter.warn("Automatic CAN interface setup skipped by --no-iface-setup")
+            modules = None
+            if args.modules:
+                modules = [part.strip().upper().zfill(2) for chunk in args.modules.split(",") for part in chunk.split() if part.strip()]
+            run_active_autoscan(
+                reporter=reporter,
+                iface=args.iface,
+                session=session,
+                db=db,
+                include_non_engine=args.experimental_module,
+                detail_protocol=args.detail or args.trace,
+                txt_out=args.txt_out,
+                json_out=args.json_out,
+                md_out=args.md_out,
+                modules=modules,
+            )
             return 0
 
         experimental_actions = ("discover-setup", "discover-session", "probe-module", "module-dtc", "module-ident")

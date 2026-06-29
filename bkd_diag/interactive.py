@@ -17,8 +17,8 @@ from .module_probe import (
     run_module_dtc,
     run_module_ident,
 )
-from .reporting import Reporter
-from .utils import fmt
+from .reporting import CsvLiveLogger, Reporter
+from .utils import fmt, parse_int_auto
 from .tp20 import TP20KWP
 from .vehicle_profile import ModuleProfile, find_module
 
@@ -36,6 +36,7 @@ class InteractiveContext:
     db: DtcDatabase
     labels: LabelStore | None = None
     bitrate: int = 500000
+    log_dir: str = "logs"
 
 
 def _prompt_choice(prompt: str = "Select") -> str:
@@ -242,7 +243,7 @@ def _parse_block_list(raw: str) -> list[int] | None:
     blocks: list[int] = []
     for token in raw.replace(",", " ").split():
         try:
-            blocks.append(int(token, 0) & 0xFF)
+            blocks.append(parse_int_auto(token) & 0xFF)
         except ValueError:
             return None
     return blocks or None
@@ -272,6 +273,15 @@ def _run_live_from_menu(ctx: InteractiveContext, reporter: Reporter, blocks: lis
         _pause()
         return
     interval, count = opts
+    csv_answer = _prompt_choice("Write CSV live log? [y/N]").lower()
+    csv_logger = None
+    if csv_answer in ("y", "yes"):
+        csv_logger = CsvLiveLogger(enabled=True, log_dir=ctx.log_dir)
+        if csv_logger.error:
+            reporter.warn(f"CSV logging disabled: {csv_logger.error}")
+            csv_logger = None
+        elif csv_logger.ownership_warning:
+            reporter.warn(csv_logger.ownership_warning)
     reporter.info("Live engine measuring blocks. Press Ctrl+C to stop and return to this menu.")
     ecu = None
     try:
@@ -285,7 +295,7 @@ def _run_live_from_menu(ctx: InteractiveContext, reporter: Reporter, blocks: lis
             interval=interval,
             count=count,
             include_raw=False,
-            csv_logger=None,
+            csv_logger=csv_logger,
             labels=ctx.labels,
             dashboard=True,
         )
@@ -294,6 +304,10 @@ def _run_live_from_menu(ctx: InteractiveContext, reporter: Reporter, blocks: lis
     finally:
         if ecu:
             ecu.close()
+        if csv_logger:
+            csv_logger.close()
+            if csv_logger.path:
+                reporter.ok(f"CSV live log saved: {csv_logger.path}")
     _pause()
 
 
@@ -344,7 +358,7 @@ def _engine_measuring_blocks(ctx: InteractiveContext, reporter: Reporter) -> Non
         if choice == "7":
             raw = _prompt_choice("Block number, e.g. 003")
             try:
-                block = int(raw, 0)
+                block = parse_int_auto(raw)
             except ValueError:
                 reporter.warn("Invalid block number.")
                 _pause()
@@ -524,7 +538,7 @@ def _safe_capture_name(raw: str) -> str:
     return cleaned.strip("._-") or "capture"
 
 
-def _passive_vcds_capture(ctx: InteractiveContext, reporter: Reporter) -> None:
+def _passive_vcds_capture(ctx: InteractiveContext, reporter: Reporter, default_stem: str | None = None, guide_lines: list[str] | None = None) -> None:
     if shutil.which("candump") is None:
         reporter.fail("candump not found. Install can-utils first.")
         return
@@ -532,7 +546,10 @@ def _passive_vcds_capture(ctx: InteractiveContext, reporter: Reporter) -> None:
     reporter.header("Passive VCDS splitter capture")
     reporter.warn("Connect the Linux adapter through the splitter in listen-only mode.")
     reporter.warn("Start VCDS after this capture starts. Stop capture with Ctrl+C.")
-    default_name = "vcds_capture_" + datetime.now().strftime("%Y%m%d_%H%M%S")
+    if guide_lines:
+        for line in guide_lines:
+            reporter.info(line)
+    default_name = default_stem or ("vcds_capture_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
     name = _prompt_choice(f"Capture filename stem [{default_name}]") or default_name
     stem = _safe_capture_name(name)
     out_dir = Path("captures")
@@ -578,6 +595,24 @@ def _passive_vcds_capture(ctx: InteractiveContext, reporter: Reporter) -> None:
             reporter.ok(f"Capture saved: {path}")
 
 
+def _guided_measuring_block_capture(ctx: InteractiveContext, reporter: Reporter) -> None:
+    reporter.header("Guided VCDS measuring-block capture")
+    module = _prompt_choice("VCDS module address, e.g. 08") or "08"
+    group = _prompt_choice("Measuring block group, e.g. 001") or "001"
+    scenario = _prompt_choice("Scenario note, e.g. idle_blower_low_high") or "measuring_block"
+    module_clean = _safe_capture_name(module.zfill(2))
+    group_clean = _safe_capture_name(group.zfill(3))
+    scenario_clean = _safe_capture_name(scenario)
+    default_stem = f"vcds_{module_clean}_group{group_clean}_{scenario_clean}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    guide = [
+        f"In VCDS open Address {module_clean} and Measuring Blocks group {group_clean}.",
+        "Capture idle/baseline first, then change one physical state, then return to baseline.",
+        "For HVAC examples: blower low/high, temperature LO/HI, A/C on/off, recirc on/off.",
+        "Stop capture with Ctrl+C, then analyse the trace and compare raw payload changes.",
+    ]
+    _passive_vcds_capture(ctx, reporter, default_stem=default_stem, guide_lines=guide)
+
+
 def _analyse_trace_menu(ctx: InteractiveContext, reporter: Reporter) -> None:
     reporter.header("Analyse existing trace")
     path = _prompt_choice("Path to candump log")
@@ -606,25 +641,29 @@ def _capture_tools_menu(ctx: InteractiveContext, reporter: Reporter) -> None:
     while True:
         reporter.header("Capture / trace tools")
         _menu_item(reporter, "1", "Passive VCDS splitter capture")
-        _menu_item(reporter, "2", "Analyse existing trace")
-        _menu_item(reporter, "3", "Show capture checklist")
-        _menu_item(reporter, "4", f"Restore {ctx.iface} active {ctx.bitrate // 1000}k mode")
-        _menu_item(reporter, "5", "Back")
+        _menu_item(reporter, "2", "Guided VCDS measuring-block capture")
+        _menu_item(reporter, "3", "Analyse existing trace")
+        _menu_item(reporter, "4", "Show capture checklist")
+        _menu_item(reporter, "5", f"Restore {ctx.iface} active {ctx.bitrate // 1000}k mode")
+        _menu_item(reporter, "6", "Back")
         choice = _prompt_choice()
         try:
             if choice == "1":
                 _passive_vcds_capture(ctx, reporter)
                 _pause()
             elif choice == "2":
-                _analyse_trace_menu(ctx, reporter)
+                _guided_measuring_block_capture(ctx, reporter)
                 _pause()
             elif choice == "3":
-                _show_capture_checklist(reporter)
+                _analyse_trace_menu(ctx, reporter)
                 _pause()
             elif choice == "4":
+                _show_capture_checklist(reporter)
+                _pause()
+            elif choice == "5":
                 _restore_can_active(ctx, reporter)
                 _pause()
-            elif choice in ("5", "b", "back", "q", "quit"):
+            elif choice in ("6", "b", "back", "q", "quit"):
                 return
             else:
                 reporter.warn("Unknown selection.")

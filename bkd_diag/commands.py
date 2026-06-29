@@ -16,6 +16,7 @@ from .autoscan import load_autoscan, load_default_autoscan
 from .reporting import CsvLiveLogger, Reporter
 from .utils import ascii_runs, fmt
 from .trace_analyzer import analyse_trace, build_summary, write_summary_json
+from .active_autoscan import collect_active_autoscan, render_autoscan_text, write_autoscan_outputs, PROVEN_AUTOSCAN_MODULES
 
 
 def print_negative_response(reporter: Reporter, resp: bytes) -> bool:
@@ -119,6 +120,74 @@ def _write_live_csv(csv_logger: CsvLiveLogger | None, decoded: dict, block_num: 
         decoded["fields"],
         text_value=text_value,
     )
+
+
+def _field_numeric_value(field: dict) -> float | None:
+    decoded = field.get("decoded")
+    if not decoded:
+        return None
+    value = decoded.get("value")
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _update_live_stats(stats: dict[tuple[int, int], dict[str, float]], block_num: int, decoded: dict) -> None:
+    for field in decoded.get("fields", []):
+        value = _field_numeric_value(field)
+        if value is None:
+            continue
+        key = (block_num, int(field.get("index", 0)))
+        item = stats.setdefault(key, {"first": value, "min": value, "max": value, "last": value})
+        item["last"] = value
+        item["min"] = min(item["min"], value)
+        item["max"] = max(item["max"], value)
+
+
+def _fmt_num(value: float) -> str:
+    if abs(value) >= 1000:
+        return f"{value:.0f}"
+    if abs(value) >= 100:
+        return f"{value:.1f}"
+    return f"{value:.2f}"
+
+
+def _live_dashboard_block_lines(block_num: int, decoded_block: dict, stats: dict[tuple[int, int], dict[str, float]], colour) -> list[str]:
+    hint = decoded_block["hint"]
+    name = hint.get("name") or f"Block {block_num:03d}"
+    lines = [colour.bold(colour.cyan(f"block {block_num:03d}")) + colour.dim(f"  {name}")]
+
+    if decoded_block.get("classification") == "text":
+        text = " | ".join(decoded_block.get("text_runs", [])) or "<no printable text>"
+        lines.append(f"  text: {colour.green(text)}")
+        return lines
+
+    for field in decoded_block.get("fields", []):
+        if field.get("status") == "empty":
+            continue
+        label = short_field_label(field.get("label", f"F{field.get('index')}"))
+        value_text = field_display(field)
+        numeric = _field_numeric_value(field)
+        if numeric is None:
+            lines.append(f"  {colour.cyan(label):<34} {colour.yellow(value_text)}")
+            continue
+
+        unit = field.get("decoded", {}).get("unit", "")
+        item = stats.get((block_num, int(field.get("index", 0))), {})
+        delta = numeric - item.get("first", numeric)
+        changed = abs(delta) > 0.01
+        val_col = colour.yellow if changed else colour.green
+        range_text = (
+            f"min {item.get('min', numeric):.1f}  "
+            f"max {item.get('max', numeric):.1f}  "
+            f"Δ {delta:+.1f}"
+        )
+        lines.append(
+            f"  {colour.cyan(label):<34} "
+            f"{val_col(_fmt_num(numeric) + (' ' + unit if unit else '')):<18} "
+            f"{colour.dim(range_text)}"
+        )
+    return lines
 
 
 def _render_live_dashboard(
@@ -226,6 +295,7 @@ def run_live(
     started_at = time.time()
     latest_lines: list[str] = []
     error_lines: list[str] = []
+    stats: dict[tuple[int, int], dict[str, float]] = {}
 
     while True:
         tick_started = time.time()
@@ -240,7 +310,10 @@ def run_live(
                     error_lines.append(reporter.colour.yellow(f"block {block_num:03d} unexpected={fmt(resp)}"))
                     continue
 
-                new_lines.append(live_line(block_num, decoded, include_raw=include_raw, raw_resp=resp, colour=reporter.colour))
+                _update_live_stats(stats, block_num, decoded)
+                new_lines.extend(_live_dashboard_block_lines(block_num, decoded, stats, reporter.colour))
+                if include_raw:
+                    new_lines.append(reporter.colour.dim(f"  raw={fmt(resp)}"))
                 _write_live_csv(csv_logger, decoded, block_num)
 
             except Exception as exc:
@@ -774,6 +847,41 @@ def run_autoscan_summary(reporter: Reporter, path: str | None = None, faults_onl
 
 def run_autoscan_faults(reporter: Reporter, path: str | None = None) -> None:
     run_autoscan_summary(reporter, path=path, faults_only=True)
+
+def run_active_autoscan(
+    reporter: Reporter,
+    iface: str,
+    session: int,
+    db: DtcDatabase,
+    include_non_engine: bool,
+    detail_protocol: bool = False,
+    txt_out: str | None = None,
+    json_out: str | None = None,
+    md_out: str | None = None,
+    modules: list[str] | None = None,
+) -> None:
+    reporter.header("Auto-Scan read-only")
+    if include_non_engine:
+        reporter.warn("Read-only autoscan opens proven modules and reads DTCs. No clears/coding/adaptations are sent.")
+    else:
+        reporter.warn("--experimental-module not supplied; autoscan will read Engine 01 only.")
+
+    selected = modules or (PROVEN_AUTOSCAN_MODULES if include_non_engine else ["01"])
+    report = collect_active_autoscan(
+        iface=iface,
+        session=session,
+        reporter=reporter,
+        db=db,
+        modules=selected,
+        include_non_engine=include_non_engine,
+        detail_protocol=detail_protocol,
+    )
+
+    reporter.line(render_autoscan_text(report, colour=reporter.colour).rstrip())
+    written = write_autoscan_outputs(report, txt_out=txt_out, json_out=json_out, md_out=md_out, colour=reporter.colour)
+    for path in written:
+        reporter.ok(f"Wrote Auto-Scan report: {path}")
+
 
 def run_map_blocks(reporter: Reporter) -> None:
     reporter.header("BKD block map")
