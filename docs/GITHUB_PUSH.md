@@ -20,7 +20,7 @@ cd ~/github/bkd-tp20-diag
 ## Check private files are not present
 
 ```bash
-git grep -nE 'VSSZZZ1PZ6R006636|SEZ7Z0E3103005|pitto|openmmi|nastox|@nastox|@openmmi' || echo "No tracked personal strings found"
+git grep -nE 'YOUR_REAL_VIN|YOUR_REG|your-name|your-email|your-handle' || echo "No tracked personal strings found"
 git ls-files | grep -E 'logs|captures|private|\.venv|egg-info|__pycache__' || echo "No private/generated paths tracked"
 ```
 
@@ -98,18 +98,19 @@ Known useful checkpoints:
 v0.3.8   old public/docs checkpoint
 v0.3.16  multi-module read-only diagnostics and ABS clean-exit checkpoint
 v0.3.17  observed DTC lookup entries
+v0.4.0   interactive start menu checkpoint
 ```
 
 Push tags:
 
 ```bash
-git push origin v0.3.16 v0.3.17
+git push origin v0.3.16 v0.3.17 v0.4.0
 ```
 
 If a tag was corrected locally before publishing:
 
 ```bash
-git push -f origin v0.3.16 v0.3.17
+git push -f origin v0.3.16 v0.3.17 v0.4.0
 ```
 
 ## Do not commit private captures

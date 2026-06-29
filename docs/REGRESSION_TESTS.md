@@ -1,6 +1,6 @@
 # Known-good regression test sequence
 
-This is the v0.3.17 regression sequence. It checks offline commands, trace parsing,
+This is the v0.4.5 regression sequence. It checks offline commands, trace parsing,
 engine diagnostics, VCDS-derived read-only module diagnostics, log ownership,
 experimental-module guardrails, and privacy checks.
 
@@ -29,6 +29,12 @@ python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 19
 python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 44
 python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 46
 python3 -m bkd_diag.cli --no-log autoscan-faults
+printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup start
+printf '1\nNO\n\n6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --experimental-module start
+printf '5\n3\n\n5\n6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup start
+printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --redact-private start
+printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --force-colour start
+printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --no-colour start
 ```
 
 Trace analyser:
@@ -171,9 +177,35 @@ testing until the close path is reviewed.
 Do not run clear, coding, adaptation, basic settings or output tests as part of this
 regression set.
 
+## 6. Interactive menu smoke test
+
+Parked only. This checks the v0.4.0 menu wrapper without changing the proven
+direct CLI paths. Start without `--experimental-module` first to confirm
+non-engine modules are visibly gated:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 start
+```
+
+Then start with the gate enabled and use the menu to select one known-good
+module, read DTCs, and exit:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module start
+```
+
+Recommended first interactive path:
+
+```text
+Select module -> 08 Auto HVAC -> Read DTCs -> Back -> Exit
+```
+
+Non-engine clear DTC and non-engine measuring blocks should display disabled/not
+implemented messages in this build.
+
 ## 7. Privacy and publish checks
 
 ```bash
-git grep -nE 'VSSZZZ1PZ6R006636|SEZ7Z0E3103005|pitto|openmmi|nastox|@nastox|@openmmi' || echo "No tracked personal strings found"
+git grep -nE 'YOUR_REAL_VIN|YOUR_REG|your-name|your-email|your-handle' || echo "No tracked personal strings found"
 git ls-files | grep -E 'logs|captures|private|\.venv|egg-info|__pycache__' || echo "No private/generated paths tracked"
 ```

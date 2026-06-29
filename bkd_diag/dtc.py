@@ -37,6 +37,7 @@ BUILTIN_DTC_LOOKUP: dict[int, dict[str, str]] = {
     },
 }
 
+
 STATUS_BITS = {
     0x01: "test failed now",
     0x02: "failed this operation cycle",

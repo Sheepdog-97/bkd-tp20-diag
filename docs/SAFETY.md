@@ -4,7 +4,7 @@ This is experimental vehicle diagnostic software.
 
 ## Safe default scope
 
-The mature supported path is Engine 01 on the BKD EDC16 ECU over VW TP2.0/KWP2000.
+The mature supported path is Engine 01 on the BKD EDC16 ECU over VW TP2.0/KWP2000 over CAN. KW1281/K-line controllers are out of scope for this tool.
 
 Supported engine operations:
 
@@ -41,6 +41,23 @@ close the diagnostic session
 This is still vehicle-specific evidence, not a universal VAG compatibility claim.
 Do not run experimental module commands unless you understand what the tool is
 sending.
+
+## Interactive menu safety
+
+From v0.4.0, `start` provides a module-first interactive menu. From v0.4.1 the menu also includes capture/trace tools and concise Auto-Scan output by default. v0.4.2 only adds semantic colour; it does not widen diagnostic scope. It is a usability
+wrapper around the existing proven commands, not a broader permission model.
+
+The menu deliberately keeps these limits:
+
+```text
+Engine 01 clear DTCs: allowed with typed confirmation
+Non-engine clear DTCs: disabled
+Engine 01 measuring blocks: allowed
+Non-engine measuring blocks: disabled until VCDS-captured requests are proven
+```
+
+Starting the menu without `--experimental-module` leaves non-engine active access
+visible but disabled. Use `--redact-private` when logs/output may be shared publicly; live VIN-like identifiers are redacted before they reach terminal output or session logs.
 
 ## ABS/ESP close behaviour
 

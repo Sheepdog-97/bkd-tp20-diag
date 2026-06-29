@@ -1,5 +1,64 @@
 # Changelog
 
+## v0.4.6 - Correct measured-value scaling
+
+- Fixes CLI parsing so measuring block numbers like `001`, `003`, `010`, and `011` are accepted as decimal groups.
+- Corrects the first-pass measuring value formulas for known BKD cells after an ignition-on/engine-off capture proved `01 69 00` must decode as 0 rpm, not ~840 rpm.
+- Updates RPM, pressure, duty/percentage, and air-mass scaling used by engine measuring-block snapshots and live dashboard.
+- Leaves unknown formula bytes unresolved instead of pretending they are meaningful.
+
+## v0.4.5 - In-place live measuring block dashboard
+
+- Changes interactive live Engine 01 measuring blocks from scrolling sample output to an in-place terminal dashboard.
+- The dashboard redraws the latest field values, sample count, time and recent warnings instead of creating a terminal journal.
+- Falls back to the previous scrolling output when stdout is not an interactive colour terminal.
+- Direct CLI `live`/`preset` behaviour remains compatible; no TP2.0/KWP protocol, clear-DTC or non-engine measuring-block scope changes.
+
+## v0.4.4 - Live measuring block menu session fix
+
+- Fixed interactive engine live measuring blocks opening the TP2.0 session before user prompts.
+- Live/snapshot engine measuring block menu entries now open a fresh short engine session only when the read actually starts.
+- This avoids the ECU closing an idle menu-held session with A8 before the first live block request.
+- No protocol scope, DTC clear scope or non-engine measuring-block support changed.
+
+## v0.4.3 - Live measuring blocks in interactive menu
+
+- Adds live Engine 01 measuring-block polling to the interactive `start` menu.
+- Adds live core preset `001 003 004 011`, live air/boost preset `003 010 011`, and custom live block entry.
+- Keeps non-engine measuring blocks disabled until VCDS-captured module block requests are added.
+- No TP2.0/KWP protocol changes and no clear-DTC scope changes.
+
+## v0.4.2 - Semantic colour polish
+
+- Adds more semantic colour to the interactive menu and concise Auto-Scan summary.
+- Colours clean/no-DTC states green, DTC/warning states yellow, errors/disabled actions red, and headings/module names cyan/bold.
+- Keeps existing `--no-colour` / `--no-color` and `--force-colour` / `--force-color` controls.
+- Logging remains plain text because ANSI escape sequences are stripped before writing log files.
+- No protocol, DTC, clear, capture or measuring-block behaviour changes.
+
+## v0.4.1 - Redaction, concise Auto-Scan and capture menu
+
+- Adds global `--redact-private` to redact VIN/email-like identifiers from terminal output and logs.
+- Changes interactive Auto-Scan to a concise read-only summary by default; use `--detail start` for the full TP2.0/KWP dialogue.
+- Adds `Capture / trace tools` to the interactive menu:
+  - passive VCDS splitter capture with listen-only CAN setup,
+  - analyse an existing candump trace,
+  - show capture checklist,
+  - restore CAN active mode.
+- Keeps non-engine clear-DTC and non-engine measuring blocks disabled.
+- Documents that MK4-era KW1281/K-line cars such as early EDC15/ASZ platforms are out of scope for this TP2.0-over-CAN tool.
+
+## v0.4.0 - Interactive start menu
+
+- Adds `start`, an interactive workshop-style menu for common tasks.
+- Keeps existing direct CLI commands for scripting/regression testing.
+- Adds a module-first flow: select module, then read identification, read DTCs, clear DTCs, or measuring blocks.
+- Enables interactive Engine 01 read/clear/measuring-block snapshots using the existing proven engine paths.
+- Enables interactive read-only DTC/ident access for proven non-engine modules when `--experimental-module` is supplied.
+- Keeps non-engine clear-DTC disabled in the menu.
+- Keeps non-engine measuring blocks disabled until VCDS-captured block requests are added.
+- Adds a read-only autoscan menu option over the proven module set.
+
 ## v0.3.17 - Observed VAG DTC lookup entries
 
 - Adds built-in lookup entries for observed live module DTCs:

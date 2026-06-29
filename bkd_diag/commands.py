@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import time
 from datetime import datetime
 
@@ -108,47 +109,158 @@ def run_block(ecu, reporter: Reporter, block_num: int, labels: LabelStore | None
     return resp
 
 
-def run_live(ecu, reporter: Reporter, blocks: list[int], interval: float, count: int, include_raw: bool, csv_logger: CsvLiveLogger | None, labels: LabelStore | None = None) -> None:
+def _write_live_csv(csv_logger: CsvLiveLogger | None, decoded: dict, block_num: int) -> None:
+    if not csv_logger:
+        return
+    text_value = " | ".join(decoded.get("text_runs", [])) if decoded.get("classification") == "text" else None
+    csv_logger.write_sample(
+        datetime.now().isoformat(timespec="milliseconds"),
+        block_num,
+        decoded["fields"],
+        text_value=text_value,
+    )
+
+
+def _render_live_dashboard(
+    reporter: Reporter,
+    clean_blocks: list[int],
+    interval: float,
+    count: int,
+    sample_no: int,
+    started_at: float,
+    latest_lines: list[str],
+    error_lines: list[str],
+    csv_path: str | None = None,
+) -> None:
+    colour = reporter.colour
+    elapsed = time.time() - started_at
+    lines = [
+        colour.bold(colour.cyan("== Live measuring blocks ==")),
+        f"Sample: {colour.green(str(sample_no))}" + (f" / {count}" if count else "")
+        + f"    Time: {colour.green(datetime.now().strftime('%H:%M:%S'))}"
+        + f"    Elapsed: {colour.green(f'{elapsed:0.1f}s')}",
+        f"Blocks: {', '.join(f'{b:03d}' for b in clean_blocks)}    Interval: {interval:.2f}s",
+    ]
+    if csv_path:
+        lines.append(colour.dim(f"CSV live log: {csv_path}"))
+    lines.extend(["", colour.dim("Press Ctrl+C to stop and return to the menu."), ""])
+
+    if latest_lines:
+        lines.extend(latest_lines)
+    else:
+        lines.append(colour.yellow("No samples decoded yet."))
+
+    if error_lines:
+        lines.extend(["", colour.yellow("Recent warnings:")])
+        lines.extend(error_lines[-4:])
+
+    sys.stdout.write("\033[2J\033[H" + "\n".join(lines) + "\n")
+    sys.stdout.flush()
+
+
+def run_live(
+    ecu,
+    reporter: Reporter,
+    blocks: list[int],
+    interval: float,
+    count: int,
+    include_raw: bool,
+    csv_logger: CsvLiveLogger | None,
+    labels: LabelStore | None = None,
+    dashboard: bool = False,
+) -> None:
     if interval < 0.2:
         reporter.warn(f"Requested interval {interval:.2f}s is very fast; clamping to 0.20s")
         interval = 0.2
 
     clean_blocks = [b & 0xFF for b in blocks]
+    dashboard_enabled = dashboard and reporter.colour.enabled and sys.stdout.isatty()
+
+    if not dashboard_enabled:
+        if dashboard:
+            reporter.warn("Live dashboard disabled because stdout is not an interactive colour terminal; using scrolling output.")
+        reporter.header("Live measuring blocks")
+        reporter.info("Press Ctrl+C to stop")
+        reporter.info(f"Blocks: {', '.join(f'{b:03d}' for b in clean_blocks)}")
+        reporter.info(f"Interval: {interval:.2f}s")
+        if csv_logger and csv_logger.path:
+            reporter.info(f"CSV live log: {csv_logger.path}")
+
+        samples = 0
+        while True:
+            tick_started = time.time()
+            ts = datetime.now().strftime("%H:%M:%S")
+
+            for block_num in clean_blocks:
+                try:
+                    resp = ecu.kwp_request([0x21, block_num], timeout=6.0)
+                    decoded = decode_block_response(block_num, resp, labels=labels)
+                    if decoded is None:
+                        reporter.warn(f"{ts} block {block_num:03d} unexpected={fmt(resp)}")
+                        continue
+
+                    reporter.line(f"{ts}  {live_line(block_num, decoded, include_raw=include_raw, raw_resp=resp, colour=reporter.colour)}")
+                    _write_live_csv(csv_logger, decoded, block_num)
+
+                except Exception as exc:
+                    reporter.warn(f"Live read failed for block {block_num:03d}: {exc}")
+
+            samples += 1
+            if count and samples >= count:
+                reporter.ok(f"Live capture complete: {samples} sample cycle(s)")
+                return
+
+            time.sleep(max(0.0, interval - (time.time() - tick_started)))
+
+    # Dashboard mode deliberately redraws the same terminal area instead of
+    # producing a journal of samples. The run log stays compact; use --csv from
+    # the direct CLI if you need a full sample history.
     reporter.header("Live measuring blocks")
-    reporter.info("Press Ctrl+C to stop")
+    reporter.info("Dashboard mode: values update in place. Press Ctrl+C to stop.")
     reporter.info(f"Blocks: {', '.join(f'{b:03d}' for b in clean_blocks)}")
     reporter.info(f"Interval: {interval:.2f}s")
     if csv_logger and csv_logger.path:
         reporter.info(f"CSV live log: {csv_logger.path}")
 
     samples = 0
+    started_at = time.time()
+    latest_lines: list[str] = []
+    error_lines: list[str] = []
+
     while True:
         tick_started = time.time()
-        ts = datetime.now().strftime("%H:%M:%S")
+        samples += 1
+        new_lines: list[str] = []
 
         for block_num in clean_blocks:
             try:
                 resp = ecu.kwp_request([0x21, block_num], timeout=6.0)
                 decoded = decode_block_response(block_num, resp, labels=labels)
                 if decoded is None:
-                    reporter.warn(f"{ts} block {block_num:03d} unexpected={fmt(resp)}")
+                    error_lines.append(reporter.colour.yellow(f"block {block_num:03d} unexpected={fmt(resp)}"))
                     continue
 
-                reporter.line(f"{ts}  {live_line(block_num, decoded, include_raw=include_raw, raw_resp=resp, colour=reporter.colour)}")
-
-                if csv_logger:
-                    text_value = " | ".join(decoded.get("text_runs", [])) if decoded.get("classification") == "text" else None
-                    csv_logger.write_sample(
-                        datetime.now().isoformat(timespec="milliseconds"),
-                        block_num,
-                        decoded["fields"],
-                        text_value=text_value,
-                    )
+                new_lines.append(live_line(block_num, decoded, include_raw=include_raw, raw_resp=resp, colour=reporter.colour))
+                _write_live_csv(csv_logger, decoded, block_num)
 
             except Exception as exc:
-                reporter.warn(f"Live read failed for block {block_num:03d}: {exc}")
+                error_lines.append(reporter.colour.yellow(f"block {block_num:03d}: {exc}"))
 
-        samples += 1
+        if new_lines:
+            latest_lines = new_lines
+
+        _render_live_dashboard(
+            reporter,
+            clean_blocks=clean_blocks,
+            interval=interval,
+            count=count,
+            sample_no=samples,
+            started_at=started_at,
+            latest_lines=latest_lines,
+            error_lines=error_lines,
+            csv_path=csv_logger.path if csv_logger and csv_logger.path else None,
+        )
+
         if count and samples >= count:
             reporter.ok(f"Live capture complete: {samples} sample cycle(s)")
             return

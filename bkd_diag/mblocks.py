@@ -13,22 +13,31 @@ EMPTY_FIELD = bytes([0x25, 0x00, 0x00])
 def decode_measuring_value(type_byte: int, a: int, b: int) -> dict[str, Any] | None:
     raw_u16 = (a << 8) | b
 
-    # Observed and verified on user's BKD logs:
-    # 0x01  raw/32       rpm
-    # 0x12  raw/64       mbar
-    # 0x17  byte_b/255   percent/duty
-    # 0x31  raw/128      mg/str
+    # VAG/KWP measuring values are three-byte cells: formula byte + A + B.
+    # The first public builds wrongly treated several cells as a big-endian
+    # integer divided by a constant.  An ignition-on/engine-off capture proved
+    # that formula was bogus: 01 69 00 decoded as ~840 rpm even though the
+    # engine was stopped.  These formula-byte decodes now use the classic VAG
+    # measured-value table shape and are kept deliberately small/conservative.
     if type_byte == 0x01:
-        return {"value": raw_u16 / 32.0, "unit": "rpm", "kind": "engine speed", "text": f"{raw_u16 / 32.0:.1f} rpm"}
+        value = a * 0.2 * b
+        return {"value": value, "unit": "rpm", "kind": "engine speed", "text": f"{value:.0f} rpm"}
 
     if type_byte == 0x12:
-        return {"value": raw_u16 / 64.0, "unit": "mbar", "kind": "pressure", "text": f"{raw_u16 / 64.0:.1f} mbar"}
+        value = 0.04 * a * b
+        return {"value": value, "unit": "mbar", "kind": "pressure", "text": f"{value:.1f} mbar"}
 
     if type_byte == 0x17:
-        return {"value": b * 100.0 / 255.0, "unit": "%", "kind": "percentage/duty", "text": f"{b * 100.0 / 255.0:.1f} %" }
+        value = (a * b) / 256.0
+        return {"value": value, "unit": "%", "kind": "percentage/duty", "text": f"{value:.1f} %"}
 
     if type_byte == 0x31:
-        return {"value": raw_u16 / 128.0, "unit": "mg/str", "kind": "air mass", "text": f"{raw_u16 / 128.0:.1f} mg/str"}
+        # Formula byte 0x31 is commonly an air-mass-per-stroke style value on
+        # TDI blocks.  The base table is effectively A*B/4 with an implied
+        # one-decimal display for these labels, hence /40 here.  This makes
+        # 31 C8 00 decode to 0 instead of a false ~400 mg/str with engine off.
+        value = (a * b) / 40.0
+        return {"value": value, "unit": "mg/str", "kind": "air mass", "text": f"{value:.1f} mg/str"}
 
     return None
 

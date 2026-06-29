@@ -1,6 +1,17 @@
 # Trace capture and analysis
 
-## Capture VCDS/ODIS passively
+## Guided interactive capture
+
+From v0.4.1 the interactive menu can put the interface into listen-only mode, run
+`candump`, save a timestamped capture under `captures/`, and restore active mode
+when stopped:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 start
+# Main menu -> Capture / trace tools -> Passive VCDS splitter capture
+```
+
+## Manual VCDS/ODIS passive capture
 
 Use an OBD splitter. VCDS/ODIS should be the active diagnostic tester. The Linux CAN
 adapter should be listen-only.

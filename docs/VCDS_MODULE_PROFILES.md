@@ -66,6 +66,18 @@ Engine 01 remains the stable primary target and uses logical `0x01`, tester → 
 - ABS needs a graceful close window so ABS/ESP lamps do not remain flashing after the
   tool exits.
 
+## Interactive menu
+
+From v0.4.0, the proven read-only module paths can also be reached from the
+module-first menu:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module start
+```
+
+The menu does not enable non-engine clear DTCs or non-engine measuring blocks. It
+only wraps the proven read-only identification/DTC paths.
+
 ## Active command policy
 
 Active non-engine commands remain behind `--experimental-module` even though these

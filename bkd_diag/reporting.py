@@ -2,12 +2,28 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from .utils import ANSI_RE, fmt
 
+
+VIN_RE = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
+EMAIL_RE = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
+
+
+def redact_private_text(text: str) -> str:
+    """Redact common private identifiers from user-visible output and logs.
+
+    The primary target is live VIN output. Email redaction is included for
+    pasted notes/report paths that may contain account details. Raw CAN hex is
+    intentionally not decoded/redacted here.
+    """
+    text = VIN_RE.sub("[REDACTED-VIN]", text)
+    text = EMAIL_RE.sub("[REDACTED-EMAIL]", text)
+    return text
 
 LEVELS = {
     "silent": 0,
@@ -152,15 +168,18 @@ class RunLogger:
 
 
 class Reporter:
-    def __init__(self, colour: Colour, logger: RunLogger | None = None, verbosity: str = "normal"):
+    def __init__(self, colour: Colour, logger: RunLogger | None = None, verbosity: str = "normal", redact_private: bool = False):
         if verbosity not in LEVELS:
             raise ValueError(f"Unknown verbosity: {verbosity}")
         self.colour = colour
         self.logger = logger
         self.verbosity_name = verbosity
         self.verbosity = LEVELS[verbosity]
+        self.redact_private = redact_private
 
     def line(self, text: str = "", level: int = 1, log: bool = True) -> None:
+        if self.redact_private:
+            text = redact_private_text(text)
         if self.verbosity >= level:
             print(text, flush=True)
         if log and self.logger:

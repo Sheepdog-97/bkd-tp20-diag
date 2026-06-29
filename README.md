@@ -8,9 +8,16 @@ on the BKD EDC16 ECU. Several non-engine PQ35 modules are now proven on the
 development car for **read-only identification and DTC reads**, but they remain
 explicitly gated and vehicle-specific.
 
+This project is **TP2.0/KWP2000 over CAN only**. It does not speak KW1281/K-line,
+so MK4-era cars/controllers such as early EDC15 ASZ/038906019 setups are outside
+the current transport scope.
+
 License: **GPL-3.0-or-later**. See `LICENSE`.
 
 ## Current status
+
+Current package version: **v0.4.5**.
+
 
 | Area | Status |
 |---|---|
@@ -20,6 +27,7 @@ License: **GPL-3.0-or-later**. See `LICENSE`.
 | ECU identification | Proven |
 | Measuring blocks | Proven for useful BKD groups; labels are still conservative |
 | Live CSV logging | Working |
+| Engine live measuring-block dashboard | Working in interactive menu |
 | 03 ABS Brakes | Read-only active DTC/ID proven; ABS/ESP clean close tested in v0.3.16 |
 | 08 Auto HVAC | Read-only active DTC/ID proven; observed DTC 00229 / 0x00E5 |
 | 17 Instruments | Read-only active DTC/ID proven |
@@ -88,6 +96,68 @@ bkd-diag --help
 ```
 
 See `docs/INSTALL.md` for SocketCAN setup, DSD wiring, and listen-only sniff mode.
+
+
+## Interactive start menu
+
+For normal workshop use, start the interactive menu instead of copying individual
+commands from the docs:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 start
+```
+
+To enable the proven non-engine read-only module paths inside the menu, add the
+existing experimental gate:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module start
+```
+
+The menu is module-first:
+
+```text
+Main menu
+  Auto-Scan read-only
+  Select module
+  Engine quick check
+  Engine measuring blocks
+  Capture / trace tools
+
+Module menu
+  Read identification
+  Read DTCs
+  Clear DTCs
+  Measuring blocks
+```
+
+Current interactive scope:
+
+| Module/action | Status |
+|---|---|
+| Engine 01 read DTCs | Enabled |
+| Engine 01 clear DTCs | Enabled with typed confirmation |
+| Engine 01 measuring block snapshots | Enabled for known/custom groups |
+| 03/08/17/19/44/46 read identification | Enabled with `--experimental-module` |
+| 03/08/17/19/44/46 read DTCs | Enabled with `--experimental-module` |
+| Non-engine clear DTCs | Disabled in this build |
+| Non-engine measuring blocks | Not implemented yet; capture VCDS measuring-block traffic first |
+
+Auto-Scan from the menu is concise by default. Start with `--detail` if you want
+the full TP2.0/KWP protocol dialogue during Auto-Scan:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module --detail start
+```
+
+Use `--redact-private` when output/logs may be shared:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module --redact-private start
+```
+
+The original direct CLI commands remain available for scripting and regression
+testing.
 
 ## Core engine commands
 
@@ -163,6 +233,12 @@ workflows. See `docs/REGRESSION_TESTS.md` for the known-good test sequence.
 ## Trace capture and analysis
 
 Passive VCDS/ODIS capture is the preferred way to learn non-engine module dialects.
+From v0.4.2, the interactive menu uses semantic ANSI colour for clean/pass, warning/DTC, disabled/risky and heading states. Use `--no-colour` / `--no-color` for plain output, or `--force-colour` / `--force-color` when piping to a terminal that supports ANSI.
+
+From v0.4.5, `Engine measuring blocks` in the interactive menu supports live polling for the proven engine presets and custom block lists. Non-engine measuring blocks remain disabled until VCDS-captured module block requests are added.
+
+From v0.4.1, the interactive menu has `Capture / trace tools` for guided listen-only
+capture and trace analysis. The manual equivalent is:
 
 ```bash
 sudo ip link set can0 down

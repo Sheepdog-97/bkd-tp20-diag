@@ -20,7 +20,13 @@ def parse_hex_items(items: list[str]) -> list[int]:
 
 
 def parse_int_auto(text: str) -> int:
-    return int(text, 0)
+    value = text.strip()
+    if value.lower().startswith("0x"):
+        return int(value, 16)
+    # Treat leading-zero CLI values as decimal measuring block numbers.
+    # Python's int(x, 0) rejects strings like "001"; users naturally type
+    # VAG groups as 001/003/011.
+    return int(value, 10)
 
 
 def ascii_printable(data: bytes) -> str:

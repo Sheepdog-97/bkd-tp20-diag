@@ -14,10 +14,11 @@ Before pushing to GitHub:
   python3 -m bkd_diag.cli --help
   python3 -m bkd_diag.cli --no-log --no-iface-setup module-plan
   python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 03
+  printf '5\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup start
   python3 -m bkd_diag.cli --no-log analyse-trace examples/sample_abs_tp20_trace.log
   ```
 - run privacy checks:
   ```bash
-  git grep -nE 'VSSZZZ1PZ6R006636|SEZ7Z0E3103005|pitto|openmmi|nastox|@nastox|@openmmi' || echo "No tracked personal strings found"
+  git grep -nE 'YOUR_REAL_VIN|YOUR_REG|your-name|your-email|your-handle' || echo "No tracked personal strings found"
   git ls-files | grep -E 'logs|captures|private|\.venv|egg-info|__pycache__' || echo "No private/generated paths tracked"
   ```

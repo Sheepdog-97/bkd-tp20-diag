@@ -16,6 +16,7 @@ from .tp20 import TP20KWP
 from .utils import parse_hex_items, parse_int_auto
 from .labels import parse_label_file
 from .module_probe import module_open_kwargs, module_session, resolve_module_address, run_module_dtc, run_module_ident, run_read_only_probe
+from .interactive import InteractiveContext, run_interactive_start
 from .setup_discovery import run_setup_discovery
 from .session_discovery import run_session_discovery, DEFAULT_SESSION_CANDIDATES
 
@@ -35,6 +36,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-colour", "--no-color", action="store_true")
     parser.add_argument("--force-colour", "--force-color", action="store_true", help="Force ANSI colour even if stdout is not detected as a TTY")
     parser.add_argument("--experimental-module", action="store_true", help="Allow active experimental non-engine module probes/discovery")
+    parser.add_argument("--redact-private", action="store_true", help="Redact VIN/email-like private identifiers from terminal output and logs")
 
     out = parser.add_mutually_exclusive_group()
     out.add_argument("--silent", action="store_true", help="Minimal terminal output")
@@ -56,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     quick_p.add_argument("--yes-clear", action="store_true")
     quick_p.add_argument("--no-prompt", action="store_true")
 
+    sub.add_parser("start", help="Interactive workshop-style menu")
     sub.add_parser("ident", help="Read ECU identification")
     sub.add_parser("engine-check", help="Read-only Engine 01 DTC/ID/live-data snapshot")
     sub.add_parser("mot-check", help="Alias for engine-check")
@@ -164,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
 
     colour = Colour(enabled=(not args.no_colour) and (args.force_colour or sys.stdout.isatty()))
     logger = RunLogger(enabled=not args.no_log, log_dir=args.log_dir, action=args.action)
-    reporter = Reporter(colour=colour, logger=logger, verbosity=verbosity_from_args(args))
+    reporter = Reporter(colour=colour, logger=logger, verbosity=verbosity_from_args(args), redact_private=args.redact_private)
     if logger.error:
         reporter.warn(f"Logging disabled: {logger.error}")
         reporter.info("Tip: fix local log permissions with: sudo chown -R $USER:$USER logs")
@@ -260,6 +263,23 @@ def main(argv: list[str] | None = None) -> int:
         except ValueError:
             reporter.fail(f"Invalid session byte: {args.session}")
             return 2
+
+        if args.action == "start":
+            if not args.no_iface_setup:
+                reporter.header("CAN interface setup")
+                ensure_can_interface(args.iface, args.bitrate, reporter, force=args.force_iface_setup)
+            else:
+                reporter.warn("Automatic CAN interface setup skipped by --no-iface-setup")
+            ctx = InteractiveContext(
+                iface=args.iface,
+                session=session,
+                experimental_module=args.experimental_module,
+                db=db,
+                labels=labels,
+                bitrate=args.bitrate,
+            )
+            run_interactive_start(ctx, reporter)
+            return 0
 
         experimental_actions = ("discover-setup", "discover-session", "probe-module", "module-dtc", "module-ident")
         if args.action in experimental_actions and not args.experimental_module:
