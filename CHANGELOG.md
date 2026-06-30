@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.6.1
+
+- Added first-pass HVAC measured-value decodes proven from live 08 Auto HVAC output:
+  - formula 0x05 temperature values,
+  - formula 0x06 voltage values,
+  - formula 0x07 vehicle speed values,
+  - formula 0x08 scaled/code values.
+- Added compressor shut-off code rendering in measuring-block output, e.g. code 3 = refrigerant pressure too low.
+- Keeps unknown HVAC formulas unresolved/raw rather than guessing.
+- No protocol, clear-DTC, coding, adaptation, output-test, basic-settings, or CAN-replay changes.
+
 ## v0.6.0
 
 - Added built-in 08 Auto HVAC measured-value catalogue seeded from VCDS screenshots.

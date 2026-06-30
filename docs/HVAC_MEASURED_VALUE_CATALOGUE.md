@@ -103,9 +103,25 @@ lookup:
 17 = Refrigerant pressure sensor implausible
 ```
 
+## First-pass decoded formula bytes
+
+The first live HVAC test proved a few safe/common measured-value formula bytes:
+
+```text
+0x01  engine speed              A * 0.2 * B rpm
+0x05  temperature               A * 0.1 * B - 100 °C
+0x06  voltage                   A * 0.001 * B V
+0x07  vehicle speed             A * 0.01 * B km/h
+0x08  scaled/code value         A * 0.1 * B, label-dependent
+```
+
+Unknown cells remain raw/unresolved.  Group 007/008 field counts are based on
+the live 08 Auto HVAC payloads seen on the development vehicle; treat label
+seeds as useful but not universal across all HVAC variants.
+
 ## Safety boundary
 
-v0.6.0 does not add HVAC control.  It does not send output tests, coding,
+v0.6.1 does not add HVAC control.  It does not send output tests, coding,
 adaptation, basic settings, security access, clear-DTC commands, or replayed
 passive CAN frames.  It only opens the profiled 08 diagnostic channel and reads
 measuring blocks.

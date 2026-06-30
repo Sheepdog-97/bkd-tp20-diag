@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .bkd_data import BLOCK_HINTS, OBSERVED_ACTIVE_BLOCKS, OBSERVED_EMPTY_BLOCKS, PRESETS
+from .hvac_blocks import COMPRESSOR_SHUTOFF_CODES
 from .utils import ascii_runs, fmt
 
 
@@ -22,6 +23,30 @@ def decode_measuring_value(type_byte: int, a: int, b: int) -> dict[str, Any] | N
     if type_byte == 0x01:
         value = a * 0.2 * b
         return {"value": value, "unit": "rpm", "kind": "engine speed", "text": f"{value:.0f} rpm"}
+
+    if type_byte == 0x05:
+        # Common VAG temperature cell used by PQ35 HVAC blocks.  Example from
+        # live HVAC group 006: 05 0A 8A -> 38.0 °C.
+        value = (0.1 * a * b) - 100.0
+        return {"value": value, "unit": "°C", "kind": "temperature", "text": f"{value:.1f} °C"}
+
+    if type_byte == 0x06:
+        # Voltage, e.g. 06 64 8F -> 14.3 V for terminal 30/15.
+        value = 0.001 * a * b
+        return {"value": value, "unit": "V", "kind": "voltage", "text": f"{value:.1f} V"}
+
+    if type_byte == 0x07:
+        # Vehicle speed in HVAC group 001, e.g. 07 64 00 -> 0.0 km/h.
+        value = 0.01 * a * b
+        return {"value": value, "unit": "km/h", "kind": "vehicle speed", "text": f"{value:.1f} km/h"}
+
+    if type_byte == 0x08:
+        # Generic scaled value/code used in HVAC groups.  Keep the unit blank:
+        # the label decides whether it is a compressor shut-off code, sunlight
+        # intensity, country value, auxiliary-heater current, etc.
+        value = 0.1 * a * b
+        text = f"{value:.0f}" if abs(value - round(value)) < 0.0001 else f"{value:.1f}"
+        return {"value": value, "unit": "", "kind": "scaled/code", "text": text}
 
     if type_byte == 0x12:
         value = 0.04 * a * b
@@ -181,8 +206,18 @@ def field_display(field: dict[str, Any]) -> str:
         return "empty"
     if field.get("status") == "partial":
         return f"partial raw={fmt(field.get('raw', b''))}"
-    if field.get("decoded"):
-        return field["decoded"]["text"]
+    decoded = field.get("decoded")
+    label = field.get("label", "")
+    if decoded:
+        if label == "Compressor Shut-Off Code":
+            try:
+                code = int(round(float(decoded.get("value"))))
+            except (TypeError, ValueError):
+                code = None
+            if code is not None:
+                meaning = COMPRESSOR_SHUTOFF_CODES.get(code, "unknown compressor shut-off code")
+                return f"{code} ({meaning})"
+        return decoded["text"]
     return f"unresolved raw={fmt(field.get('raw', b''))}"
 
 

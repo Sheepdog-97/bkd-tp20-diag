@@ -91,7 +91,6 @@ HVAC_BLOCKS: dict[int, HvacBlock] = {
         7,
         "Turbine / blower voltage",
         (
-            "Turbine Voltage actual",
             "Turbine Voltage specified",
             "Turbine Load",
             "Voltage Terminal 30",
@@ -102,7 +101,6 @@ HVAC_BLOCKS: dict[int, HvacBlock] = {
         "Supply / dimming",
         (
             "Voltage Terminal 15",
-            "Field 2",
             "Dimming Terminal 58d",
             "Country",
         ),
