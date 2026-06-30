@@ -100,3 +100,13 @@ airbag/immobilizer experiments
 ```
 
 Keep active diagnostic tooling separate from any always-on Open MMI runtime.
+
+## 08 Auto HVAC measuring blocks
+
+v0.6.0 adds active read-only 08 Auto HVAC measuring-block reads.  These are
+limited to KWP `21 xx` requests on the profiled 08 TP2.0 channel.  The feature is
+intended to create ground-truth logs for passive Open MMI reverse engineering.
+
+This feature does **not** add HVAC control.  It does not send output tests,
+coding, adaptation, basic settings, security access, DTC clear commands, or
+passive CAN replay/spoofing frames.

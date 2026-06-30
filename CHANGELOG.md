@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.6.0
+
+- Added built-in 08 Auto HVAC measured-value catalogue seeded from VCDS screenshots.
+- Added `hvac-catalogue` command.
+- Added read-only `module-block 08 <group>` and `module-live 08 <groups...>` commands for HVAC measuring blocks.
+- Added interactive 08 Auto HVAC measuring-block menu for useful overview, flap groups, group 009 and custom groups.
+- Added strict expected-response matching for KWP measuring-block reads (`61 xx` / `7F 21`).
+- Updated unresolved measured-value display to avoid misleading fake `u16` values.
+- Added HVAC measured-value catalogue documentation and CSV label seed.
+- No HVAC control, output tests, coding, adaptation, basic settings, clear-DTC, or CAN replay added.
+
+
 ## v0.5.1 - live dashboard helper fix
 
 - Fixed interactive live measuring-block dashboard/CSV mode raising `name 'short_field_label' is not defined`.

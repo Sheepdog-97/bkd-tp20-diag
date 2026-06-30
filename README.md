@@ -377,3 +377,24 @@ start -> Capture / trace tools -> Guided VCDS measuring-block capture
 This is the preferred workflow for learning future HVAC/Instruments/Convenience
 measuring blocks from VCDS splitter captures. See
 `docs/HVAC_MEASURING_BLOCK_WORKFLOW.md`.
+
+
+### 08 Auto HVAC measured values
+
+`v0.6.0` adds a read-only HVAC measured-value catalogue and safe measuring-block reads for the profiled 08 Auto HVAC module.
+
+```bash
+python3 -m bkd_diag.cli hvac-catalogue
+
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
+  --iface can0 \
+  --experimental-module \
+  module-block 08 009
+
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
+  --iface can0 \
+  --experimental-module \
+  module-live 08 001 006 007 008 009 --csv
+```
+
+This is read-only diagnostic polling (`21 xx` / `61 xx`) and is intended as an oracle for passive Open MMI signal discovery. It does not add HVAC control, output tests, coding, adaptation, or CAN replay.

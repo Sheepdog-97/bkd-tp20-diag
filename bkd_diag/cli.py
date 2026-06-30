@@ -8,7 +8,7 @@ from .commands import (
     run_block, run_clear, run_cmd, run_freeze_probe, run_ident, run_live,
     run_map_blocks, run_quick, run_read, run_readiness_probe, run_scan_blocks, run_selftest,
     run_list_presets, run_preset, run_vehicle_profile, run_module_info, run_module_probe_plan, run_autoscan_summary, run_autoscan_faults,
-    run_engine_check, run_trace_analysis, run_active_autoscan
+    run_engine_check, run_trace_analysis, run_active_autoscan, run_module_block, run_module_live, run_hvac_catalogue
 )
 from .dtc import DtcDatabase
 from .reporting import Colour, CsvLiveLogger, Reporter, RunLogger
@@ -152,6 +152,22 @@ def build_parser() -> argparse.ArgumentParser:
     module_ident_p.add_argument("module", help="Address/name, e.g. 03, abs, 17, instruments, 46")
     module_ident_p.add_argument("--optional-ident", action="store_true", help="Also try extra VCDS-observed/legacy ident IDs")
 
+    hvac_catalogue_p = sub.add_parser("hvac-catalogue", help="Show built-in 08 Auto HVAC measured-value catalogue")
+    hvac_catalogue_p.add_argument("blocks", nargs="*", type=parse_int_auto, help="Optional group numbers, e.g. 001 006 009")
+
+    module_block_p = sub.add_parser("module-block", help="Read a safe non-engine measuring block snapshot; currently 08 Auto HVAC only")
+    module_block_p.add_argument("module", help="Module address/name, currently 08 or hvac")
+    module_block_p.add_argument("number", type=parse_int_auto, help="Measuring block group, e.g. 009")
+    module_block_p.add_argument("--raw", action="store_true", help="Show raw response at detail level")
+
+    module_live_p = sub.add_parser("module-live", help="Poll safe non-engine measuring blocks; currently 08 Auto HVAC only")
+    module_live_p.add_argument("module", help="Module address/name, currently 08 or hvac")
+    module_live_p.add_argument("blocks", nargs="+", type=parse_int_auto, help="Measuring block groups, e.g. 001 006 009")
+    module_live_p.add_argument("--interval", type=float, default=1.0)
+    module_live_p.add_argument("--count", type=int, default=0)
+    module_live_p.add_argument("--raw", action="store_true")
+    module_live_p.add_argument("--csv", action="store_true")
+
     cmd_p = sub.add_parser("cmd", help="Send arbitrary short KWP command")
     cmd_p.add_argument("bytes", nargs="+")
 
@@ -257,6 +273,10 @@ def main(argv: list[str] | None = None) -> int:
             run_module_probe_plan(reporter)
             return 0
 
+        if args.action == "hvac-catalogue":
+            run_hvac_catalogue(reporter, args.blocks or None)
+            return 0
+
         if args.action == "autoscan-summary":
             run_autoscan_summary(reporter, path=args.path, faults_only=args.faults_only)
             return 0
@@ -312,7 +332,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        experimental_actions = ("discover-setup", "discover-session", "probe-module", "module-dtc", "module-ident")
+        experimental_actions = ("discover-setup", "discover-session", "probe-module", "module-dtc", "module-ident", "module-block", "module-live")
         if args.action in experimental_actions and not args.experimental_module:
             reporter.fail(f"Refusing experimental non-engine module action '{args.action}' without --experimental-module")
             reporter.warn("These actions may open diagnostic sessions on ABS/gateway/cluster/body modules.")
@@ -326,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             reporter.warn("Automatic CAN interface setup skipped by --no-iface-setup")
 
-        if args.action in ("live", "preset") and getattr(args, "csv", False):
+        if args.action in ("live", "preset", "module-live") and getattr(args, "csv", False):
             csv_logger = CsvLiveLogger(enabled=True, log_dir=args.log_dir)
             if csv_logger.error:
                 reporter.warn(f"CSV logging disabled: {csv_logger.error}")
@@ -357,13 +377,13 @@ def main(argv: list[str] | None = None) -> int:
         logical_address = 0x01
         module_profile = None
         open_kwargs = {"logical_address": logical_address}
-        if args.action in ("probe-module", "module-dtc", "module-ident"):
+        if args.action in ("probe-module", "module-dtc", "module-ident", "module-block", "module-live"):
             logical_address, module_profile = resolve_module_address(args.module)
             open_kwargs = module_open_kwargs(args.module)
 
         ecu = TP20KWP(iface=args.iface, reporter=reporter, **open_kwargs)
         start_session = not (args.action == "probe-module" and args.no_session_open)
-        open_session = module_session(module_profile, fallback=session) if args.action in ("probe-module", "module-dtc", "module-ident") else session
+        open_session = module_session(module_profile, fallback=session) if args.action in ("probe-module", "module-dtc", "module-ident", "module-block", "module-live") else session
         ecu.open(session=open_session, start_session=start_session)
 
         if args.action == "read":
@@ -415,6 +435,20 @@ def main(argv: list[str] | None = None) -> int:
             run_module_dtc(ecu, reporter, args.module, db)
         elif args.action == "module-ident":
             run_module_ident(ecu, reporter, args.module, include_optional=args.optional_ident)
+        elif args.action == "module-block":
+            run_module_block(ecu, reporter, args.module, args.number, labels=labels)
+        elif args.action == "module-live":
+            run_module_live(
+                ecu,
+                reporter,
+                args.module,
+                args.blocks,
+                interval=args.interval,
+                count=args.count,
+                include_raw=args.raw,
+                csv_logger=csv_logger,
+                labels=labels,
+            )
         elif args.action == "cmd":
             run_cmd(ecu, reporter, parse_hex_items(args.bytes))
         else:

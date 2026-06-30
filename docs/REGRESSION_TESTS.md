@@ -234,3 +234,33 @@ Guided VCDS measuring-block capture should be visible under:
 ```text
 start -> Capture / trace tools -> Guided VCDS measuring-block capture
 ```
+
+## v0.6.0 HVAC measured-value catalogue smoke tests
+
+Offline:
+
+```bash
+python3 -m compileall -q bkd_diag
+python3 -m bkd_diag.cli --no-log --no-colour hvac-catalogue 001 009
+python3 -m bkd_diag.cli --no-log --no-colour module-block --help
+python3 -m bkd_diag.cli --no-log --no-colour module-live --help
+printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --no-colour start
+```
+
+On vehicle, read-only only:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
+  --iface can0 \
+  --experimental-module \
+  module-block 08 009
+
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
+  --iface can0 \
+  --experimental-module \
+  module-live 08 001 006 007 008 009 --csv
+```
+
+Expected: 08 Auto HVAC opens using its profiled TP2.0 address, sends only KWP
+`21 xx` measuring-block reads, and displays VCDS-seeded labels. Unknown formulas
+remain unresolved/raw rather than being presented as proven engineering units.

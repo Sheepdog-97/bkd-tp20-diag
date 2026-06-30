@@ -134,8 +134,12 @@ def decode_block_response(block_num: int, resp: bytes, labels=None) -> dict[str,
 def short_field_label(label: str) -> str:
     replacements = {
         "Engine speed": "rpm",
+        "Engine Speed": "rpm",
+        "Vehicle Speed": "speed",
         "MAF specified": "MAF spec",
         "MAF actual": "MAF actual",
+        "EGR / air mass specified": "air spec",
+        "EGR / air mass actual": "air actual",
         "EGR duty": "EGR duty",
         "Boost specified": "boost spec",
         "Boost actual": "boost actual",
@@ -143,7 +147,32 @@ def short_field_label(label: str) -> str:
         "Boost control duty": "boost duty",
         "Charge pressure specified": "boost spec",
         "Charge pressure actual": "boost actual",
+        "Compressor Shut-Off Code": "compressor off code",
+        "Compressor Current actual": "compressor current",
+        "Compressor Current specified": "compressor spec",
+        "Compressor Rotations": "compressor rpm",
+        "Compressor Load": "compressor load",
+        "Refrigerant Pressure": "refrigerant pressure",
+        "Radiator Fan Activation actual": "fan actual",
+        "Radiator Fan Activation specified": "fan spec",
+        "Engine Speed increase": "rpm increase",
+        "Evaporator Temperature": "evaporator temp",
+        "Interior Temperature": "interior temp",
+        "Left Sunlight Intensity G107": "sun left",
+        "Right Sunlight Intensity G134": "sun right",
+        "Turbine Voltage actual": "blower V actual",
+        "Turbine Voltage specified": "blower V spec",
+        "Turbine Load": "blower load",
+        "Voltage Terminal 30": "term 30",
+        "Voltage Terminal 15": "term 15",
+        "Dimming Terminal 58d": "dimmer 58d",
+        "Rear Window Heater Z2 actual": "rear heater actual",
+        "Rear Window Heater Z2 specified": "rear heater spec",
+        "Auxiliary Heater Status": "aux heater status",
+        "Auxiliary Heater Current": "aux heater current",
     }
+    if label.startswith("Potentiometer "):
+        return label.replace("Potentiometer ", "")
     return replacements.get(label, label)
 
 
@@ -154,7 +183,7 @@ def field_display(field: dict[str, Any]) -> str:
         return f"partial raw={fmt(field.get('raw', b''))}"
     if field.get("decoded"):
         return field["decoded"]["text"]
-    return f"raw={fmt(field.get('raw', b''))} u16={field.get('unsigned', '')}"
+    return f"unresolved raw={fmt(field.get('raw', b''))}"
 
 
 

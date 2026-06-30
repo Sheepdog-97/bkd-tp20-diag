@@ -17,6 +17,7 @@ from .reporting import CsvLiveLogger, Reporter
 from .utils import ascii_runs, fmt
 from .trace_analyzer import analyse_trace, build_summary, write_summary_json
 from .active_autoscan import collect_active_autoscan, render_autoscan_text, write_autoscan_outputs, PROVEN_AUTOSCAN_MODULES
+from .hvac_blocks import HVAC_BLOCKS, hvac_catalogue_lines, hvac_label_store
 
 
 def print_negative_response(reporter: Reporter, resp: bytes) -> bool:
@@ -27,6 +28,24 @@ def print_negative_response(reporter: Reporter, resp: bytes) -> bool:
     reporter.fail(f"Negative KWP response to service 0x{svc:02X}: 0x{code:02X} {name}")
     reporter.detail(f"Raw response: {fmt(resp)}")
     return True
+
+
+def _read_measuring_block_response(ecu, block_num: int, timeout: float = 6.0) -> bytes:
+    block = block_num & 0xFF
+    return ecu.kwp_request(
+        [0x21, block],
+        timeout=timeout,
+        expected_prefixes=[bytes([0x61, block]), b"\x7F\x21"],
+        strict_expected=True,
+    )
+
+
+def _labels_for_module(module_address: str | None, labels: LabelStore | None = None) -> LabelStore | None:
+    if labels is not None and getattr(labels, "readable", False):
+        return labels
+    if (module_address or "").upper().zfill(2) == "08":
+        return hvac_label_store()
+    return labels
 
 
 def run_read(ecu, reporter: Reporter, read_cmd: list[int], db: DtcDatabase) -> bytes:
@@ -95,7 +114,7 @@ def run_quick(ecu, reporter: Reporter, read_cmd: list[int], clear_cmd: list[int]
 def run_block(ecu, reporter: Reporter, block_num: int, labels: LabelStore | None = None) -> bytes:
     reporter.header(f"Reading measuring block {block_num:03d}")
     reporter.info(f"KWP command: 21 {block_num & 0xFF:02X}")
-    resp = ecu.kwp_request([0x21, block_num & 0xFF], timeout=6.0)
+    resp = _read_measuring_block_response(ecu, block_num, timeout=6.0)
 
     decoded = decode_block_response(block_num, resp, labels=labels)
     if decoded is None:
@@ -262,7 +281,7 @@ def run_live(
 
             for block_num in clean_blocks:
                 try:
-                    resp = ecu.kwp_request([0x21, block_num], timeout=6.0)
+                    resp = _read_measuring_block_response(ecu, block_num, timeout=6.0)
                     decoded = decode_block_response(block_num, resp, labels=labels)
                     if decoded is None:
                         reporter.warn(f"{ts} block {block_num:03d} unexpected={fmt(resp)}")
@@ -304,7 +323,7 @@ def run_live(
 
         for block_num in clean_blocks:
             try:
-                resp = ecu.kwp_request([0x21, block_num], timeout=6.0)
+                resp = _read_measuring_block_response(ecu, block_num, timeout=6.0)
                 decoded = decode_block_response(block_num, resp, labels=labels)
                 if decoded is None:
                     error_lines.append(reporter.colour.yellow(f"block {block_num:03d} unexpected={fmt(resp)}"))
@@ -356,7 +375,7 @@ def run_scan_blocks(ecu, reporter: Reporter, start: int, end: int, delay: float,
 
     for block_num in range(start, end + 1):
         try:
-            resp = ecu.kwp_request([0x21, block_num & 0xFF], timeout=5.0)
+            resp = _read_measuring_block_response(ecu, block_num & 0xFF, timeout=5.0)
             decoded = decode_block_response(block_num, resp, labels=labels)
 
             if decoded:
@@ -544,7 +563,7 @@ def _decoded_field_text(decoded: dict, index: int) -> str:
 
 def _try_decoded_block(ecu, reporter: Reporter, block_num: int, labels: LabelStore | None = None) -> dict | None:
     try:
-        resp = ecu.kwp_request([0x21, block_num & 0xFF], timeout=6.0)
+        resp = _read_measuring_block_response(ecu, block_num, timeout=6.0)
         decoded = decode_block_response(block_num, resp, labels=labels)
         if decoded is None:
             reporter.warn(f"Block {block_num:03d} unexpected response: {fmt(resp)}")
@@ -651,6 +670,73 @@ def run_engine_check(ecu, reporter: Reporter, db: DtcDatabase, labels: LabelStor
     reporter.line("Live data: BKD block 003/011 snapshot complete" if (b003 and b011) else "Live data: partial/failed snapshot")
     reporter.warn("MOT-style caveat: this is the BKD TP2.0/KWP path. Coolant/readiness are not yet the same polished generic EOBD presentation a commercial MOT reader would show.")
     reporter.ok("Engine check complete")
+
+
+def run_hvac_catalogue(reporter: Reporter, blocks: list[int] | None = None) -> None:
+    for line in hvac_catalogue_lines(blocks):
+        if not line:
+            reporter.line("")
+            continue
+        if line.startswith("Group ") or line.startswith("08 Auto HVAC"):
+            reporter.line(reporter.colour.bold(reporter.colour.cyan(line)))
+        elif line.startswith("  F"):
+            reporter.line("  " + reporter.colour.cyan(line.strip()))
+        elif line.strip().startswith(tuple(str(x) for x in range(10))):
+            reporter.line(line)
+        else:
+            reporter.line(line)
+
+
+def run_module_block(ecu, reporter: Reporter, module_address: str, block_num: int, labels: LabelStore | None = None) -> bytes:
+    addr = module_address.upper().zfill(2)
+    if addr != "08":
+        raise RuntimeError("module-block is currently enabled only for 08 Auto HVAC. Use engine block/live for 01 Engine.")
+    labels = _labels_for_module(addr, labels)
+    reporter.header(f"08 Auto HVAC measuring block {block_num:03d}")
+    block_info = HVAC_BLOCKS.get(block_num & 0xFF)
+    if block_info:
+        reporter.info(f"Catalogue: {block_info.name} [{block_info.confidence}]")
+    reporter.warn("Read-only measuring-block request only: 21 xx. No coding/adaptation/output tests/clear commands are sent.")
+    resp = _read_measuring_block_response(ecu, block_num, timeout=6.0)
+    decoded = decode_block_response(block_num & 0xFF, resp, labels=labels)
+    if decoded is None:
+        reporter.warn(f"Unexpected response for HVAC block {block_num:03d}: {fmt(resp)}")
+        print_negative_response(reporter, resp)
+        return resp
+    for line in format_block_table(decoded, detail=True, colour=reporter.colour):
+        reporter.line(line, level=1)
+    reporter.detail(f"Raw response: {fmt(resp)}")
+    return resp
+
+
+def run_module_live(
+    ecu,
+    reporter: Reporter,
+    module_address: str,
+    blocks: list[int],
+    interval: float,
+    count: int,
+    include_raw: bool,
+    csv_logger: CsvLiveLogger | None,
+    labels: LabelStore | None = None,
+    dashboard: bool = False,
+) -> None:
+    addr = module_address.upper().zfill(2)
+    if addr != "08":
+        raise RuntimeError("module-live is currently enabled only for 08 Auto HVAC. Use engine live/preset for 01 Engine.")
+    labels = _labels_for_module(addr, labels)
+    reporter.warn("08 HVAC live measuring is read-only polling of VCDS-observed 21 xx groups.")
+    run_live(
+        ecu,
+        reporter,
+        blocks=blocks,
+        interval=interval,
+        count=count,
+        include_raw=include_raw,
+        csv_logger=csv_logger,
+        labels=labels,
+        dashboard=dashboard,
+    )
 
 
 def run_trace_analysis(reporter: Reporter, path: str, show_raw: bool = False, max_events: int = 0, json_out: str | None = None) -> None:

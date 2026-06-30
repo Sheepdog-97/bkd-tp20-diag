@@ -6,10 +6,11 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from .commands import run_block, run_clear, run_ident, run_live, run_quick, run_read, run_trace_analysis
+from .commands import run_block, run_clear, run_ident, run_live, run_quick, run_read, run_trace_analysis, run_module_block, run_module_live, run_hvac_catalogue
 from .dtc import DtcDatabase, status_bit_text
 from .kwp import decode_negative
 from .labels import LabelStore
+from .hvac_blocks import hvac_label_store
 from .module_probe import (
     module_open_kwargs,
     module_session,
@@ -219,6 +220,9 @@ def _run_module_action(ctx: InteractiveContext, reporter: Reporter, key: str, ac
         reporter.info("Restart with: --experimental-module start")
         return
 
+    if action == "block" and module.address == "08":
+        return _hvac_measuring_blocks(ctx, reporter)
+
     ecu = None
     try:
         ecu, module = _open_module(ctx, reporter, key)
@@ -231,7 +235,7 @@ def _run_module_action(ctx: InteractiveContext, reporter: Reporter, key: str, ac
             reporter.warn("Only Engine 01 clear is currently enabled from the interactive menu.")
         elif action == "block":
             reporter.fail(f"Measuring blocks for {module.name} / module {module.address} are not implemented yet.")
-            reporter.info("Capture VCDS measuring-block traffic first, then add known-good replay support.")
+            reporter.info("08 Auto HVAC is the first non-engine module with safe measuring-block replay support.")
         else:
             raise RuntimeError(f"Unknown module action: {action}")
     finally:
@@ -322,6 +326,136 @@ def _run_block_snapshot_from_menu(ctx: InteractiveContext, reporter: Reporter, b
     _pause()
 
 
+def _hvac_labels(ctx: InteractiveContext) -> LabelStore:
+    if ctx.labels is not None and ctx.labels.readable:
+        return ctx.labels
+    return hvac_label_store()
+
+
+def _run_hvac_block_snapshot_from_menu(ctx: InteractiveContext, reporter: Reporter, block: int) -> None:
+    ecu = None
+    module = None
+    try:
+        ecu, module = _open_module(ctx, reporter, "08")
+        run_module_block(ecu, reporter, "08", block, labels=_hvac_labels(ctx))
+    finally:
+        if ecu:
+            _close_module(ecu, reporter, module)
+    _pause()
+
+
+def _run_hvac_multi_snapshot_from_menu(ctx: InteractiveContext, reporter: Reporter, blocks: list[int]) -> None:
+    ecu = None
+    module = None
+    try:
+        ecu, module = _open_module(ctx, reporter, "08")
+        for block in blocks:
+            run_module_block(ecu, reporter, "08", block, labels=_hvac_labels(ctx))
+    finally:
+        if ecu:
+            _close_module(ecu, reporter, module)
+    _pause()
+
+
+def _run_hvac_live_from_menu(ctx: InteractiveContext, reporter: Reporter, blocks: list[int]) -> None:
+    opts = _prompt_live_options(reporter)
+    if opts is None:
+        _pause()
+        return
+    interval, count = opts
+    csv_answer = _prompt_choice("Write CSV live log? [y/N]").lower()
+    csv_logger = None
+    if csv_answer in ("y", "yes"):
+        csv_logger = CsvLiveLogger(enabled=True, log_dir=ctx.log_dir)
+        if csv_logger.error:
+            reporter.warn(f"CSV logging disabled: {csv_logger.error}")
+            csv_logger = None
+        elif csv_logger.ownership_warning:
+            reporter.warn(csv_logger.ownership_warning)
+
+    ecu = None
+    module = None
+    try:
+        ecu, module = _open_module(ctx, reporter, "08")
+        run_module_live(
+            ecu,
+            reporter,
+            "08",
+            blocks,
+            interval=interval,
+            count=count,
+            include_raw=False,
+            csv_logger=csv_logger,
+            labels=_hvac_labels(ctx),
+            dashboard=True,
+        )
+    except KeyboardInterrupt:
+        reporter.warn("Live HVAC measuring stopped by user.")
+    finally:
+        if ecu:
+            _close_module(ecu, reporter, module)
+        if csv_logger:
+            csv_logger.close()
+            if csv_logger.path:
+                reporter.ok(f"CSV live log saved: {csv_logger.path}")
+    _pause()
+
+
+def _hvac_measuring_blocks(ctx: InteractiveContext, reporter: Reporter) -> None:
+    while True:
+        reporter.header("08 Auto HVAC measuring blocks")
+        reporter.warn("Read-only VCDS-observed 21 xx measuring-block reads only. No output tests, coding, adaptations or clears.")
+        _menu_item(reporter, "1", "Show HVAC measured-value catalogue")
+        _menu_item(reporter, "2", "Snapshot useful overview", "001 006 007 008 009")
+        _menu_item(reporter, "3", "Live useful overview", "001 006 007 008 009")
+        _menu_item(reporter, "4", "Live flap positions", "011 012 013 014 015 016")
+        _menu_item(reporter, "5", "Snapshot group 009 rear-window heater")
+        _menu_item(reporter, "6", "Custom block snapshot")
+        _menu_item(reporter, "7", "Custom live blocks")
+        _menu_item(reporter, "8", "Back")
+        choice = _prompt_choice()
+
+        if choice in ("8", "b", "back", "q", "quit"):
+            return
+        if choice == "1":
+            run_hvac_catalogue(reporter)
+            _pause()
+            continue
+        if choice == "2":
+            _run_hvac_multi_snapshot_from_menu(ctx, reporter, [1, 6, 7, 8, 9])
+            continue
+        if choice == "3":
+            _run_hvac_live_from_menu(ctx, reporter, [1, 6, 7, 8, 9])
+            continue
+        if choice == "4":
+            _run_hvac_live_from_menu(ctx, reporter, [11, 12, 13, 14, 15, 16])
+            continue
+        if choice == "5":
+            _run_hvac_block_snapshot_from_menu(ctx, reporter, 9)
+            continue
+        if choice == "6":
+            raw = _prompt_choice("Block number, e.g. 009")
+            try:
+                block = parse_int_auto(raw)
+            except ValueError:
+                reporter.warn("Invalid block number.")
+                _pause()
+                continue
+            _run_hvac_block_snapshot_from_menu(ctx, reporter, block)
+            continue
+        if choice == "7":
+            raw = _prompt_choice("Blocks, e.g. 001 006 009")
+            blocks = _parse_block_list(raw)
+            if not blocks:
+                reporter.warn("Invalid block list.")
+                _pause()
+                continue
+            _run_hvac_live_from_menu(ctx, reporter, blocks)
+            continue
+        reporter.warn("Unknown selection.")
+        _pause()
+
+
 def _engine_measuring_blocks(ctx: InteractiveContext, reporter: Reporter) -> None:
     while True:
         reporter.header("Engine measuring blocks")
@@ -379,7 +513,12 @@ def _print_module_status(reporter: Reporter, module: ModuleProfile, experimental
         read_status += c.dim("; requires --experimental-module")
 
     clear_status = c.green("enabled") if module.address == "01" else c.red("disabled")
-    block_status = c.green("engine only") if module.address == "01" else c.yellow("not implemented")
+    if module.address == "01":
+        block_status = c.green("engine live/snapshot")
+    elif module.address == "08":
+        block_status = c.green("HVAC read-only") if experimental_enabled else c.dim("HVAC read-only; needs --experimental-module")
+    else:
+        block_status = c.yellow("not implemented")
 
     reporter.line(f"Read DTCs:        {read_status}")
     reporter.line(f"Clear DTCs:       {clear_status}")
