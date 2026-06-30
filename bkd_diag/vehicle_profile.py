@@ -37,7 +37,7 @@ MODULES = [
         "01", "Engine", "03G 906 016 AJ", "BKD 2.0 TDI EDC16 engine ECU",
         likely_protocol="VW TP2.0/KWP2000 proven",
         label_candidates=("03G-906-016-BKD.clb", "03G-906-016-BKC.clb", "03G-906-016-BKE.clb", "03G-906-016-BDJ.clb", "03G-906-016-BRE.clb"),
-        notes="Engine communication proven on the development vehicle. Current tool is mature for this module.",
+        notes="Engine communication proven on the development BKD/EDC16 vehicle. Engine 01 DTC reads now use the engine profile resolver, so other TP2.0/KWP engine families can add their own read-only DTC strategy without changing transport code.",
         diag_logical_address=0x01,
         ecu_to_tester_can_id=0x300,
         tester_to_ecu_can_id=0x740,

@@ -17,13 +17,23 @@ BUILTIN_DTC_LOOKUP: dict[int, dict[str, str]] = {
     },
     229: {
         "pcode": "",
-        "description": "Unknown Auto HVAC fault",
-        "hint": "Observed live on module 08 Auto HVAC as raw DTC 0x00E5.",
+        "description": "Refrigerant Pressure: Lower Limit Exceeded",
+        "hint": "Confirmed by VCDS on 08 Auto HVAC as 00229 Refrigerant Pressure - Lower Limit Exceeded.",
+    },
+    778: {
+        "pcode": "",
+        "description": "Steering Angle Sensor (G85)",
+        "hint": "Confirmed by VCDS on 03 ABS Brakes as 00778 Steering Angle Sensor (G85).",
     },
     1135: {
         "pcode": "",
         "description": "Interior Monitoring Sensors",
         "hint": "Observed live on module 46 Central Convenience as raw DTC 0x046F.",
+    },
+    1435: {
+        "pcode": "",
+        "description": "Brake Pressure Sensor 1 (G201)",
+        "hint": "Confirmed by VCDS on 03 ABS Brakes as 01435 Brake Pressure Sensor 1 (G201).",
     },
     1304: {
         "pcode": "",
@@ -34,6 +44,11 @@ BUILTIN_DTC_LOOKUP: dict[int, dict[str, str]] = {
         "pcode": "",
         "description": "Databus for Infotainment: No signal/communication",
         "hint": "Observed live on module 19 CAN Gateway as raw DTC 0x0519.",
+    },
+    12408: {
+        "pcode": "P3078",
+        "description": "Throttle Control: Airflow at Idle too Low",
+        "hint": "Confirmed by VCDS on MED9.5.10 Engine 01; raw KWP DTC 0x3078.",
     },
 }
 

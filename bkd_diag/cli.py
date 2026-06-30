@@ -8,7 +8,8 @@ from .commands import (
     run_block, run_clear, run_cmd, run_freeze_probe, run_ident, run_live,
     run_map_blocks, run_quick, run_read, run_readiness_probe, run_scan_blocks, run_selftest,
     run_list_presets, run_preset, run_vehicle_profile, run_module_info, run_module_probe_plan, run_autoscan_summary, run_autoscan_faults,
-    run_engine_check, run_trace_analysis, run_active_autoscan, run_module_block, run_module_live, run_hvac_catalogue
+    run_engine_check, run_trace_analysis, run_active_autoscan, run_module_block, run_module_live, run_hvac_catalogue,
+    run_engine_profiles, run_engine_profile_detect, run_engine_read_auto, run_quick_auto
 )
 from .dtc import DtcDatabase
 from .reporting import Colour, CsvLiveLogger, Reporter, RunLogger
@@ -46,14 +47,14 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="action", required=True)
 
     read_p = sub.add_parser("read", help="Read engine ECU faults")
-    read_p.add_argument("--cmd", nargs="+", default=["18", "02", "FF", "00"])
+    read_p.add_argument("--cmd", nargs="+", default=None, help="Override profile-resolved ReadDTC command, e.g. 18 02 FF 00")
 
     clear_p = sub.add_parser("clear", help="Clear engine ECU faults")
     clear_p.add_argument("--cmd", nargs="+", default=["14", "FF", "00"])
     clear_p.add_argument("--yes-clear", action="store_true")
 
     quick_p = sub.add_parser("quick", help="Read, optionally clear, then read again")
-    quick_p.add_argument("--read-cmd", nargs="+", default=["18", "02", "FF", "00"])
+    quick_p.add_argument("--read-cmd", nargs="+", default=None, help="Override profile-resolved ReadDTC command")
     quick_p.add_argument("--clear-cmd", nargs="+", default=["14", "FF", "00"])
     quick_p.add_argument("--yes-clear", action="store_true")
     quick_p.add_argument("--no-prompt", action="store_true")
@@ -67,6 +68,8 @@ def build_parser() -> argparse.ArgumentParser:
     active_autoscan_p.add_argument("--modules", help="Comma/space-separated module addresses; default is all proven modules with --experimental-module, otherwise 01 only")
 
     sub.add_parser("ident", help="Read ECU identification")
+    sub.add_parser("engine-profiles", help="List built-in Engine 01 profile resolver rules")
+    sub.add_parser("engine-profile", help="Detect current Engine 01 profile using read-only identity requests")
     sub.add_parser("engine-check", help="Read-only Engine 01 DTC/ID/live-data snapshot")
     sub.add_parser("mot-check", help="Alias for engine-check")
     sub.add_parser("selftest", help="DTC read + block 011 sanity check")
@@ -204,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         reporter.header("BKD TP2.0/KWP diagnostic tool")
         reporter.info(f"Interface: {args.iface}")
         reporter.info(f"Bitrate: {args.bitrate} bit/s")
-        reporter.info("Target: Address 01 Engine / BKD EDC16 TP2.0/KWP")
+        reporter.info("Target: Address 01 Engine / profile-resolved TP2.0/KWP")
         if logger.path:
             reporter.info(f"Log file: {logger.path}")
 
@@ -276,6 +279,10 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.action == "hvac-catalogue":
             run_hvac_catalogue(reporter, args.blocks or None)
+            return 0
+
+        if args.action == "engine-profiles":
+            run_engine_profiles(reporter)
             return 0
 
         if args.action == "autoscan-summary":
@@ -388,23 +395,37 @@ def main(argv: list[str] | None = None) -> int:
         ecu.open(session=open_session, start_session=start_session)
 
         if args.action == "read":
-            run_read(ecu, reporter, parse_hex_items(args.cmd), db)
+            if args.cmd:
+                run_read(ecu, reporter, parse_hex_items(args.cmd), db)
+            else:
+                run_engine_read_auto(ecu, reporter, db)
         elif args.action == "clear":
             if not args.yes_clear:
                 reporter.fail("Refusing to clear faults without --yes-clear")
                 return 2
             run_clear(ecu, reporter, parse_hex_items(args.cmd))
         elif args.action == "quick":
-            run_quick(
-                ecu, reporter,
-                parse_hex_items(args.read_cmd),
-                parse_hex_items(args.clear_cmd),
-                db,
-                yes_clear=args.yes_clear,
-                no_prompt=args.no_prompt,
-            )
+            if args.read_cmd:
+                run_quick(
+                    ecu, reporter,
+                    parse_hex_items(args.read_cmd),
+                    parse_hex_items(args.clear_cmd),
+                    db,
+                    yes_clear=args.yes_clear,
+                    no_prompt=args.no_prompt,
+                )
+            else:
+                run_quick_auto(
+                    ecu, reporter,
+                    parse_hex_items(args.clear_cmd),
+                    db,
+                    yes_clear=args.yes_clear,
+                    no_prompt=args.no_prompt,
+                )
         elif args.action == "ident":
             run_ident(ecu, reporter)
+        elif args.action == "engine-profile":
+            run_engine_profile_detect(ecu, reporter)
         elif args.action in ("engine-check", "mot-check"):
             run_engine_check(ecu, reporter, db, labels=labels)
         elif args.action == "selftest":

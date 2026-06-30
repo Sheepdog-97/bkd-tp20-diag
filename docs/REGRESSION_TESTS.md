@@ -1,6 +1,6 @@
 # Known-good regression test sequence
 
-This is the v0.4.5 regression sequence. It checks offline commands, trace parsing,
+This is the v0.7.0 regression sequence. It checks offline commands, trace parsing,
 engine diagnostics, VCDS-derived read-only module diagnostics, log ownership,
 experimental-module guardrails, and privacy checks.
 
@@ -20,6 +20,7 @@ python3 -m bkd_diag.cli --help
 python3 -m bkd_diag.cli --no-log presets
 python3 -m bkd_diag.cli --no-log map-blocks
 python3 -m bkd_diag.cli --no-log vehicle --detail
+python3 -m bkd_diag.cli --no-log engine-profiles
 python3 -m bkd_diag.cli --no-log module-plan
 python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 01
 python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 03
@@ -82,6 +83,7 @@ Car connected, ignition on, diagnostic CAN adapter on OBD pins 6/14:
 
 ```bash
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 ident
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 engine-profile
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 quick
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 engine-check
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 block 3

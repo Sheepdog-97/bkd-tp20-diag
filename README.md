@@ -4,9 +4,11 @@ Linux SocketCAN diagnostic tool for VW/SEAT/Audi/Skoda TP2.0 transport carrying
 KWP2000, developed against a SEAT Leon 1P / PQ35 BKD 2.0 TDI EDC16 engine ECU.
 
 This is not a universal VAG scanner. The stable supported target is **Engine 01**
-on the BKD EDC16 ECU. Several non-engine PQ35 modules are now proven on the
-development car for **read-only identification and DTC reads**, but they remain
-explicitly gated and vehicle-specific.
+on the BKD EDC16 ECU. From v0.7.0, Engine 01 DTC reads go through a small
+identity-based profile resolver so proven TP2.0/KWP engine families can add their
+own read-only DTC strategy without changing transport code. Several non-engine
+PQ35 modules are now proven on the development car for **read-only identification
+and DTC reads**, but they remain explicitly gated and vehicle-specific.
 
 This project is **TP2.0/KWP2000 over CAN only**. It does not speak KW1281/K-line,
 so MK4-era cars/controllers such as early EDC15 ASZ/038906019 setups are outside
@@ -16,18 +18,19 @@ License: **GPL-3.0-or-later**. See `LICENSE`.
 
 ## Current status
 
-Current package version: **v0.4.5**.
+Current package version: **v0.7.0**.
 
 
 | Area | Status |
 |---|---|
 | Engine 01 BKD EDC16 | Stable/useful |
-| Engine DTC read | Proven |
+| Engine DTC read | Profile-resolved; BKD/EDC16 and captured MED9.5.10 variant supported |
 | Engine DTC clear | Proven, explicit confirmation required |
 | ECU identification | Proven |
 | Measuring blocks | Proven for useful BKD groups; labels are still conservative |
 | Live CSV logging | Working |
 | Engine live measuring-block dashboard | Working in interactive menu |
+| 08 Auto HVAC measured values | Read-only group catalogue/live dashboard working for captured groups |
 | 03 ABS Brakes | Read-only active DTC/ID proven; ABS/ESP clean close tested in v0.3.16 |
 | 08 Auto HVAC | Read-only active DTC/ID proven; observed DTC 00229 / 0x00E5 |
 | 17 Instruments | Read-only active DTC/ID proven |
@@ -49,6 +52,33 @@ Public example data is anonymised.
 | Protocol proven | VW TP2.0 + KWP2000 over CAN |
 | OBD CAN | 500 kbit/s on pins 6/14 |
 | Example VIN | `VSSZZZ1PZ6R000000` anonymised |
+
+## Engine profile resolver
+
+Engine 01 is opened the same way, but DTC reads are now selected from a tiny
+evidence-based resolver:
+
+```text
+03G906016 / EDC / BKD    -> BKD / EDC16       -> 18 02 FF 00
+03C906056 / MED9         -> MED9.5.10 petrol  -> 18 00 FF 00
+unknown TP2.0/KWP engine -> conservative fallback, read-only only
+```
+
+List the built-in rules:
+
+```bash
+python3 -m bkd_diag.cli --no-log engine-profiles
+```
+
+Detect the connected Engine 01 profile using read-only identity requests:
+
+```bash
+sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 engine-profile
+```
+
+Adding another engine family should mean adding one profile entry after a VCDS or
+ODIS capture proves the identity match and DTC-read variant. Do not add guessed
+write/clear/coding behaviour.
 
 ## Safety
 
@@ -262,7 +292,7 @@ Test the analyser without a car:
 python3 -m bkd_diag.cli --no-log analyse-trace examples/sample_abs_tp20_trace.log --json-out /tmp/sample_abs_summary.json
 ```
 
-See `docs/TRACE_CAPTURE.md`, `docs/SPLITTER_CAPTURE_CHECKLIST.md`, and `docs/VCDS_MODULE_PROFILES.md`.
+See `docs/TRACE_CAPTURE.md`, `docs/SPLITTER_CAPTURE_CHECKLIST.md`, `docs/VCDS_MODULE_PROFILES.md`, and `docs/ENGINE_PROFILES.md`.
 
 ## Read-only non-engine modules
 
@@ -288,8 +318,9 @@ See `docs/VCDS_MODULE_PROFILES.md`.
 ## DTC lookup CSV
 
 The tool always reads raw DTCs even if the friendly lookup is missing. Built-in
-lookup entries include the engine MAF/G70 test fault and observed live module DTCs
-from 08 HVAC, 19 Gateway, and 46 Central Convenience.
+lookup entries include the BKD MAF/G70 test fault, the captured MED9.5.10 P3078
+fault, and observed/confirmed module DTCs from 03 ABS, 08 HVAC, 19 Gateway, and
+46 Central Convenience.
 
 Create a starter CSV from the built-in lookup table:
 

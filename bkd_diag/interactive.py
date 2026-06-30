@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from .commands import run_block, run_clear, run_ident, run_live, run_quick, run_read, run_trace_analysis, run_module_block, run_module_live, run_hvac_catalogue
+from .commands import run_block, run_clear, run_ident, run_live, run_quick_auto, run_engine_read_auto, run_trace_analysis, run_module_block, run_module_live, run_hvac_catalogue
 from .dtc import DtcDatabase, status_bit_text
 from .kwp import decode_negative
 from .labels import LabelStore
@@ -23,7 +23,6 @@ from .utils import fmt, parse_int_auto
 from .tp20 import TP20KWP
 from .vehicle_profile import ModuleProfile, find_module
 
-ENGINE_READ_CMD = [0x18, 0x02, 0xFF, 0x00]
 ENGINE_CLEAR_CMD = [0x14, 0xFF, 0x00]
 PROVEN_MODULES = ["01", "03", "08", "17", "19", "44", "46"]
 ENGINE_BLOCK_SHORTCUTS = [3, 10, 11]
@@ -193,9 +192,9 @@ def _run_engine_action(ctx: InteractiveContext, reporter: Reporter, action: str)
         if action == "ident":
             return run_ident(ecu, reporter)
         elif action == "dtc":
-            return run_read(ecu, reporter, ENGINE_READ_CMD, ctx.db)
+            return run_engine_read_auto(ecu, reporter, ctx.db)
         elif action == "quick":
-            return run_quick(ecu, reporter, ENGINE_READ_CMD, ENGINE_CLEAR_CMD, ctx.db, yes_clear=False, no_prompt=False)
+            return run_quick_auto(ecu, reporter, ENGINE_CLEAR_CMD, ctx.db, yes_clear=False, no_prompt=False)
         elif action == "clear":
             reporter.warn("This clears engine ECU DTCs only. It does not clear non-engine modules.")
             answer = input("Type CLEAR 01 to clear Engine DTCs: ").strip()

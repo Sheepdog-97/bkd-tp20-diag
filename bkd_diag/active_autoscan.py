@@ -12,10 +12,9 @@ from .reporting import Reporter
 from .tp20 import TP20KWP
 from .vehicle_profile import ModuleProfile, find_module
 from .utils import fmt
+from .engine_profiles import read_engine_dtcs_with_profile
 
 PROVEN_AUTOSCAN_MODULES = ["01", "03", "08", "17", "19", "44", "46"]
-ENGINE_READ_CMD = [0x18, 0x02, 0xFF, 0x00]
-
 
 @dataclass
 class DtcRecord:
@@ -155,7 +154,13 @@ def collect_active_autoscan(
         try:
             if address == "01":
                 ecu = _open_engine(iface, work_reporter, session)
-                resp = ecu.kwp_request(ENGINE_READ_CMD, timeout=5.0)
+                profile_result = read_engine_dtcs_with_profile(ecu, work_reporter, announce=detail_protocol)
+                resp = profile_result.response
+                result.component = profile_result.profile.name
+                if profile_result.identity.part_number:
+                    result.part_number = profile_result.identity.part_number
+                if profile_result.profile.key != "bkd_edc16":
+                    result.role = profile_result.profile.family
             else:
                 if not module:
                     raise RuntimeError(f"Unknown module profile: {address}")
@@ -210,6 +215,8 @@ def render_autoscan_text(report: ActiveAutoScanReport, colour=None) -> str:
         lines.append(c("cyan", title))
         if module.part_number:
             lines.append(f"  Part No: {module.part_number}")
+        if module.component:
+            lines.append(f"  Component/Profile: {module.component}")
         if module.status == "skipped":
             lines.append("  Status: skipped")
             lines.append(f"  Note: {module.error}")

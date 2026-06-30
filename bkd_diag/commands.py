@@ -18,6 +18,7 @@ from .utils import ascii_runs, fmt
 from .trace_analyzer import analyse_trace, build_summary, write_summary_json
 from .active_autoscan import collect_active_autoscan, render_autoscan_text, write_autoscan_outputs, PROVEN_AUTOSCAN_MODULES
 from .hvac_blocks import HVAC_BLOCKS, hvac_catalogue_lines, hvac_label_store
+from .engine_profiles import collect_engine_identity, engine_profile_lines, read_engine_dtcs_with_profile, resolve_engine_profile_from_identity
 
 
 def print_negative_response(reporter: Reporter, resp: bytes) -> bool:
@@ -54,6 +55,15 @@ def run_read(ecu, reporter: Reporter, read_cmd: list[int], db: DtcDatabase) -> b
     resp = ecu.kwp_request(read_cmd, timeout=5.0)
     print_dtc_response(reporter, resp, db)
     return resp
+
+
+def run_engine_read_auto(ecu, reporter: Reporter, db: DtcDatabase) -> bytes:
+    reporter.header("Reading engine DTCs")
+    reporter.warn("Read-only Engine 01 DTC read. Engine profile is resolved from ECU identity first.")
+    result = read_engine_dtcs_with_profile(ecu, reporter, announce=True)
+    title = f"Fault read result ({result.profile.name})"
+    print_dtc_response(reporter, result.response, db, title=title, ecu_label="engine ECU")
+    return result.response
 
 
 def run_clear(ecu, reporter: Reporter, clear_cmd: list[int]) -> tuple[bytes, bool]:
@@ -109,6 +119,42 @@ def run_quick(ecu, reporter: Reporter, read_cmd: list[int], clear_cmd: list[int]
     run_clear(ecu, reporter, clear_cmd)
     reporter.header("Quick verification")
     run_read(ecu, reporter, read_cmd, db)
+
+
+def run_quick_auto(ecu, reporter: Reporter, clear_cmd: list[int], db: DtcDatabase, yes_clear: bool = False, no_prompt: bool = False) -> None:
+    reporter.header("Quick workflow")
+    reporter.info("Step 1: profile-resolved read-only engine DTC read")
+    before = read_engine_dtcs_with_profile(ecu, reporter, announce=True)
+    print_dtc_response(reporter, before.response, db, title=f"Fault read result ({before.profile.name})", ecu_label="engine ECU")
+    count = dtc_count_from_response(before.response)
+
+    if count is None:
+        reporter.warn("Could not determine DTC count from response; skipping clear in quick mode.")
+        return
+    if count == 0:
+        reporter.ok("No DTCs present, so quick mode will not clear anything.")
+        return
+
+    reporter.warn(f"{count} DTC record(s) present")
+    should_clear = False
+    if yes_clear:
+        should_clear = True
+        reporter.info("--yes-clear supplied; proceeding with clear.")
+    elif no_prompt:
+        reporter.warn("--no-prompt supplied and --yes-clear not supplied; not clearing.")
+    else:
+        answer = input("Clear engine ECU DTCs now? Type yes/no: ").strip().lower()
+        should_clear = answer in ("y", "yes")
+        reporter.line(f"User clear decision: {'yes' if should_clear else 'no'}")
+
+    if not should_clear:
+        reporter.warn("Clear skipped.")
+        return
+
+    run_clear(ecu, reporter, clear_cmd)
+    reporter.header("Quick verification")
+    after = read_engine_dtcs_with_profile(ecu, reporter, announce=True)
+    print_dtc_response(reporter, after.response, db, title=f"Verification DTC read ({after.profile.name})", ecu_label="engine ECU")
 
 
 def run_block(ecu, reporter: Reporter, block_num: int, labels: LabelStore | None = None) -> bytes:
@@ -547,8 +593,11 @@ def run_readiness_probe(ecu, reporter: Reporter, labels: LabelStore | None = Non
 
 def run_selftest(ecu, reporter: Reporter, db: DtcDatabase, labels: LabelStore | None = None) -> None:
     reporter.header("Self-test")
-    resp = ecu.kwp_request([0x18, 0x02, 0xFF, 0x00], timeout=5.0)
-    print_dtc_response(reporter, resp, db, title="Self-test DTC read")
+    result = read_engine_dtcs_with_profile(ecu, reporter, announce=True)
+    print_dtc_response(reporter, result.response, db, title=f"Self-test DTC read ({result.profile.name})")
+    if result.profile.key != "bkd_edc16":
+        reporter.warn("Measuring-block part of self-test is BKD/EDC16-specific; skipping block 011 for this engine profile.")
+        return
     run_block(ecu, reporter, 0x0B, labels=labels)
 
 
@@ -583,14 +632,17 @@ def run_engine_check(ecu, reporter: Reporter, db: DtcDatabase, labels: LabelStor
     dtc_resp = None
     vin = None
     ecu_id = None
+    engine_profile_key = "unknown_kwp"
 
     reporter.header("Step 1: engine fault memory")
     try:
-        dtc_resp = ecu.kwp_request([0x18, 0x02, 0xFF, 0x00], timeout=5.0)
+        profile_result = read_engine_dtcs_with_profile(ecu, reporter, announce=True)
+        engine_profile_key = profile_result.profile.key
+        dtc_resp = profile_result.response
         dtc_count = dtc_count_from_response(dtc_resp)
         if dtc_count == 0:
             dtc_status = "OK"
-            reporter.ok("Engine DTCs: none reported by 18 02 FF 00")
+            reporter.ok(f"Engine DTCs: none reported by {fmt(profile_result.command)}")
         elif dtc_count is None:
             dtc_status = "unknown"
             reporter.warn(f"Engine DTCs: unexpected response {fmt(dtc_resp)}")
@@ -601,6 +653,18 @@ def run_engine_check(ecu, reporter: Reporter, db: DtcDatabase, labels: LabelStor
     except Exception as exc:
         dtc_status = "read failed"
         reporter.warn(f"Engine DTC read failed: {exc}")
+
+    if engine_profile_key != "bkd_edc16":
+        reporter.header("Summary")
+        if dtc_status == "OK":
+            reporter.ok("Engine fault memory: clear")
+        elif dtc_status == "FAULTS":
+            reporter.warn(f"Engine fault memory: {dtc_count} fault record(s)")
+        else:
+            reporter.warn(f"Engine fault memory: {dtc_status}")
+        reporter.warn("BKD measuring-block health snapshot is skipped for non-BKD engine profiles.")
+        reporter.ok("Engine check complete")
+        return
 
     reporter.header("Step 2: identity")
     try:
@@ -685,6 +749,33 @@ def run_hvac_catalogue(reporter: Reporter, blocks: list[int] | None = None) -> N
             reporter.line(line)
         else:
             reporter.line(line)
+
+
+def run_engine_profiles(reporter: Reporter) -> None:
+    for line in engine_profile_lines():
+        if line.startswith("Engine profile resolver") or line.startswith("Known profiles"):
+            reporter.line(reporter.colour.bold(reporter.colour.cyan(line)))
+        elif line.startswith("  ") and not line.startswith("    "):
+            reporter.line(reporter.colour.cyan(line))
+        else:
+            reporter.line(line)
+
+
+def run_engine_profile_detect(ecu, reporter: Reporter) -> None:
+    reporter.header("Engine profile detection")
+    reporter.warn("Read-only identity requests only. No DTC read, clear, coding, adaptation, basic settings or output tests.")
+    identity = collect_engine_identity(ecu, reporter=reporter)
+    profile = resolve_engine_profile_from_identity(identity)
+    reporter.header("Resolved Engine 01 profile")
+    reporter.line(f"Profile:      {reporter.colour.green(profile.name)}")
+    reporter.line(f"Family:       {profile.family}")
+    reporter.line("DTC read(s):  " + "; ".join(fmt(req) for req in profile.dtc_read_sequence()))
+    if identity.part_number:
+        reporter.line(f"Part number:  {reporter.colour.green(identity.part_number)}")
+    if identity.component:
+        reporter.line(f"Component:    {reporter.colour.green(identity.component)}")
+    if profile.notes:
+        reporter.line(f"Notes:        {profile.notes}")
 
 
 def run_module_block(ecu, reporter: Reporter, module_address: str, block_num: int, labels: LabelStore | None = None) -> bytes:
@@ -807,7 +898,7 @@ def run_trace_analysis(reporter: Reporter, path: str, show_raw: bool = False, ma
             reporter.detail(f"    raw: {event.raw}")
         shown += 1
 
-    if not any(e.kind == "kwp" for e in events):
+    if not any(e.kind.startswith("kwp") for e in events):
         reporter.warn("No TP2.0 data/KWP frames detected. Trace may only contain setup/control frames or an unsupported format.")
 
 

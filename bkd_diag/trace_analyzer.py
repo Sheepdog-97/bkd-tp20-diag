@@ -156,6 +156,36 @@ def _kwp_service_name(svc: int) -> str:
     }.get(svc, f"KWP service 0x{svc:02X}")
 
 
+def _embedded_kwp_fragments(payload: bytes, limit: int = 12) -> list[str]:
+    """Best-effort hints for traces that begin mid multi-frame response.
+
+    When a capture starts after VCDS has already opened a channel, the first
+    apparent TP2.0 segment can be misaligned.  Rather than pretending the whole
+    blob is one service, scan for recognisable KWP payload starts inside it and
+    surface them as hints for the human reviewer.
+    """
+
+    out: list[str] = []
+    for idx in range(len(payload)):
+        if len(out) >= limit:
+            break
+        svc = payload[idx]
+        if svc == 0x5A and idx + 1 < len(payload):
+            local = payload[idx + 1]
+            if local in (0x86, 0x90, 0x91, 0x9A, 0x9B, 0x9C, 0x9F):
+                out.append(f"@+{idx}: ReadECUIdentification positive 5A {local:02X}")
+        elif svc == 0x58 and idx + 1 < len(payload):
+            count = payload[idx + 1]
+            end = idx + 2 + (count * 3)
+            if count == 0 or end <= len(payload):
+                out.append(f"@+{idx}: ReadDTC positive {fmt(payload[idx:min(end, idx + 16)])}")
+        elif svc == 0x54 and idx + 2 < len(payload):
+            out.append(f"@+{idx}: ClearDTC positive {fmt(payload[idx:idx + 3])}")
+        elif svc == 0x7F and idx + 2 < len(payload):
+            out.append(f"@+{idx}: Negative response {fmt(payload[idx:idx + 3])}")
+    return out
+
+
 def describe_kwp(payload: bytes) -> tuple[str, str | None, int | None, int | None]:
     """Return detail, service label, service id, subfunction/local-id."""
     if not payload:
@@ -191,6 +221,11 @@ def describe_kwp(payload: bytes) -> tuple[str, str | None, int | None, int | Non
         if code == 0x78:
             return f"Negative/pending response: 7F {original:02X} 78 responsePending", service, svc, original
         return f"Negative KWP response: service=0x{original:02X} code=0x{code:02X}", service, svc, original
+
+    embedded = _embedded_kwp_fragments(payload)
+    if embedded:
+        preview = fmt(payload[:24]) + (" ..." if len(payload) > 24 else "")
+        return f"{service}: {preview} embedded={' ; '.join(embedded)}", service, svc, sub
 
     return f"{service}: {fmt(payload)}", service, svc, sub
 
@@ -376,7 +411,7 @@ def build_summary(path: str | Path, frames: list[TraceFrame], events: list[Trace
                 "tester_to_ecu_can_id": f"0x{tester_tx:X}" if tester_valid else None,
             })
 
-    kwp_events = [event for event in events if event.kind == "kwp"]
+    kwp_events = [event for event in events if event.kind.startswith("kwp")]
     service_counts = Counter(event.service or "unknown" for event in kwp_events)
 
     sessions_requested = sorted({
@@ -429,6 +464,7 @@ def build_summary(path: str | Path, frames: list[TraceFrame], events: list[Trace
                 "service_id": f"0x{event.service_id:02X}" if event.service_id is not None else None,
                 "subfunction": f"0x{event.subfunction:02X}" if event.subfunction is not None else None,
                 "sequence": event.sequence,
+                "embedded_kwp_hints": _embedded_kwp_fragments(event.data) if event.kind.startswith("kwp") else [],
             }
             for event in events
         ],

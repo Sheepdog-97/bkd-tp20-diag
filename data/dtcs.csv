@@ -1,6 +1,9 @@
 vag_code,pcode,description,hint
 16486,P0102,Mass Air Flow Sensor (G70): Signal too Low,Proven on this BKD ECU by unplugging MAF/G70.
+12408,P3078,Throttle Control: Airflow at Idle too Low,Confirmed by VCDS on MED9.5.10 Engine 01; raw KWP DTC 0x3078.
+229,,Refrigerant Pressure: Lower Limit Exceeded,Confirmed by VCDS on 08 Auto HVAC as 00229 Refrigerant Pressure - Lower Limit Exceeded.
+778,,Steering Angle Sensor (G85),Confirmed by VCDS on 03 ABS Brakes as 00778 Steering Angle Sensor (G85).
+1135,,Interior Monitoring Sensors,Observed from 46 Central Convenience as raw 04 6F status 0x24.
 1304,,Radio: No signal/communication,Observed in CAN Gateway DTC read / historical VCDS autoscan as 01304.
 1305,,Databus for Infotainment: No signal/communication,Observed in CAN Gateway DTC read / historical VCDS autoscan as 01305.
-229,,Unknown Auto HVAC DTC observed live,Observed from 08 Auto HVAC as raw 00 E5 status 0x62; exact label not yet confirmed.
-1135,,Interior Monitoring Sensors,Observed from 46 Central Convenience as raw 04 6F status 0x24.
+1435,,Brake Pressure Sensor 1 (G201),Confirmed by VCDS on 03 ABS Brakes as 01435 Brake Pressure Sensor 1 (G201).

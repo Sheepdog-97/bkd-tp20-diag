@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.7.0
+
+- Added a small identity-based Engine 01 profile resolver so future engine-family additions are isolated to profile rules instead of transport/protocol code.
+- Keeps BKD / EDC16 as the primary development profile with DTC read `18 02 FF 00`.
+- Adds captured MED9.5.10 / Mk5 Golf petrol support using VCDS-observed DTC read `18 00 FF 00`.
+- Unknown Engine 01 TP2.0/KWP ECUs use a conservative read-only fallback: try the BKD DTC read, then try the MED9-observed variant only when the ECU reports the first subfunction is unsupported.
+- Adds `engine-profiles` and `engine-profile` commands.
+- Direct `read`, `quick`, interactive engine DTC read, interactive quick, `engine-check`, `selftest`, and active `autoscan` now use the resolver unless the user explicitly supplies a raw read command.
+- Adds DTC lookup entries confirmed from the Mk5 Golf VCDS scan/capture: `012408 / P3078`, `00778`, `01435`, and improves `00229` to Refrigerant Pressure.
+- Improves trace analysis of mid-capture/partial long KWP payloads by surfacing embedded response hints such as `5A`, `58`, `54`, and `7F` fragments.
+- No new clear-DTC behaviour, coding, adaptation, output tests, basic settings, or CAN replay added.
+
 ## v0.6.2
 
 - Changes direct `module-live 08 ...` output from scrolling sample journal to the same in-place dashboard style used by the interactive HVAC live menu.
