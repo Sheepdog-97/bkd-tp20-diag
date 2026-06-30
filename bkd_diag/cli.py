@@ -167,6 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
     module_live_p.add_argument("--count", type=int, default=0)
     module_live_p.add_argument("--raw", action="store_true")
     module_live_p.add_argument("--csv", action="store_true")
+    module_live_p.add_argument("--journal", action="store_true", help="Use scrolling journal output instead of the default in-place dashboard")
 
     cmd_p = sub.add_parser("cmd", help="Send arbitrary short KWP command")
     cmd_p.add_argument("bytes", nargs="+")
@@ -448,6 +449,7 @@ def main(argv: list[str] | None = None) -> int:
                 include_raw=args.raw,
                 csv_logger=csv_logger,
                 labels=labels,
+                dashboard=not getattr(args, "journal", False),
             )
         elif args.action == "cmd":
             run_cmd(ecu, reporter, parse_hex_items(args.bytes))

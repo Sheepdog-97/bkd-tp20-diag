@@ -61,7 +61,9 @@ sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
   module-block 08 009
 ```
 
-Live useful overview:
+Live useful overview. In an interactive terminal this redraws an in-place
+dashboard while `--csv` writes the full sample history. Add `--journal` for
+scrolling sample-by-sample output:
 
 ```bash
 sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \

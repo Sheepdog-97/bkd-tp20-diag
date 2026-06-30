@@ -381,7 +381,7 @@ measuring blocks from VCDS splitter captures. See
 
 ### 08 Auto HVAC measured values
 
-`v0.6.0` adds a read-only HVAC measured-value catalogue and safe measuring-block reads for the profiled 08 Auto HVAC module.
+`v0.6.2` adds a read-only HVAC measured-value catalogue and safe measuring-block reads for the profiled 08 Auto HVAC module.
 
 ```bash
 python3 -m bkd_diag.cli hvac-catalogue
@@ -396,5 +396,9 @@ sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
   --experimental-module \
   module-live 08 001 006 007 008 009 --csv
 ```
+
+In an interactive terminal `module-live` redraws an in-place dashboard while the
+CSV remains the full sample history. Add `--journal` for the older scrolling
+sample-by-sample output.
 
 This is read-only diagnostic polling (`21 xx` / `61 xx`) and is intended as an oracle for passive Open MMI signal discovery. It does not add HVAC control, output tests, coding, adaptation, or CAN replay.

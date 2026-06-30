@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.6.2
+
+- Changes direct `module-live 08 ...` output from scrolling sample journal to the same in-place dashboard style used by the interactive HVAC live menu.
+- Keeps CSV logging as the full sample history underneath the dashboard.
+- Adds `module-live --journal` for the old scrolling output when that is wanted for copy/paste or non-interactive logging.
+- Falls back to scrolling output automatically when stdout is not an interactive colour terminal.
+- No TP2.0/KWP protocol, HVAC formula, clear-DTC, coding, adaptation, output-test, basic-settings, or CAN-replay changes.
+
 ## v0.6.1
 
 - Added first-pass HVAC measured-value decodes proven from live 08 Auto HVAC output:

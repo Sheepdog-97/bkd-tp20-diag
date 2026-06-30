@@ -262,5 +262,7 @@ sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
 ```
 
 Expected: 08 Auto HVAC opens using its profiled TP2.0 address, sends only KWP
-`21 xx` measuring-block reads, and displays VCDS-seeded labels. Unknown formulas
-remain unresolved/raw rather than being presented as proven engineering units.
+`21 xx` measuring-block reads, and displays VCDS-seeded labels. In an interactive
+colour terminal `module-live` should redraw a dashboard; `--journal` keeps the old
+scrolling output. Unknown formulas remain unresolved/raw rather than being
+presented as proven engineering units.
