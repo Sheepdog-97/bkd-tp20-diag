@@ -1,6 +1,6 @@
 [project]
 name = "bkd-tp20-diag"
-version = "0.7.0"
+version = "0.7.2"
 license = { text = "GPL-3.0-or-later" }
 description = "Linux SocketCAN VW TP2.0/KWP2000 diagnostic tool for BKD/EDC16 engine ECU"
 requires-python = ">=3.9"

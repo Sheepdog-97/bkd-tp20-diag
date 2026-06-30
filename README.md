@@ -18,7 +18,7 @@ License: **GPL-3.0-or-later**. See `LICENSE`.
 
 ## Current status
 
-Current package version: **v0.7.0**.
+Current package version: **v0.7.2**.
 
 
 | Area | Status |

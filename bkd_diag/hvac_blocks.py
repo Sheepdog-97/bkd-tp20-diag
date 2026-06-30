@@ -56,14 +56,15 @@ HVAC_BLOCKS: dict[int, HvacBlock] = {
     ),
     4: HvacBlock(
         4,
-        "Outlet / footwell blower temperature",
+        "Outside / intake / coolant temperatures",
         (
-            "Left Outlet Blower Temperature",
-            "Right Outlet Blower Temperature",
-            "Left Footwell Blower Temperature",
-            "Right Footwell Blower Temperature",
+            "Outside Temperature unfiltered",
+            "Outside Temperature regulation",
+            "Fresh Air Intake Temperature",
+            "Coolant Temperature",
         ),
-        confidence="candidate-label-seed",
+        confidence="vcds-screenshot-label-seed",
+        notes="Corrected from VCDS screenshots: group 004 is outside/unfiltered, outside/regulation, fresh-air intake and coolant temperature; group 005 is outlet/footwell temperature.",
     ),
     5: HvacBlock(
         5,
@@ -74,7 +75,8 @@ HVAC_BLOCKS: dict[int, HvacBlock] = {
             "Left Footwell Blower Temperature",
             "Right Footwell Blower Temperature",
         ),
-        confidence="candidate-label-seed",
+        confidence="live-confirmed-label-seed",
+        notes="Live values on the SEAT were plausible outlet/footwell temperatures, unlike group 004.",
     ),
     6: HvacBlock(
         6,
@@ -91,10 +93,12 @@ HVAC_BLOCKS: dict[int, HvacBlock] = {
         7,
         "Turbine / blower voltage",
         (
-            "Turbine Voltage specified",
+            "Turbine Voltage actual/specified",
             "Turbine Load",
             "Voltage Terminal 30",
+            "Voltage Terminal 30",
         ),
+        notes="Some modules expose three active cells and some traces show a blank/extra cell; labels are kept conservative.",
     ),
     8: HvacBlock(
         8,
@@ -103,6 +107,7 @@ HVAC_BLOCKS: dict[int, HvacBlock] = {
             "Voltage Terminal 15",
             "Dimming Terminal 58d",
             "Country",
+            "Field 4",
         ),
     ),
     9: HvacBlock(

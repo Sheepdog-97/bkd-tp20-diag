@@ -9,6 +9,11 @@ from .utils import ascii_runs, fmt
 
 
 EMPTY_FIELD = bytes([0x25, 0x00, 0x00])
+HVAC_STATUS_OFF_FIELD = bytes([0x25, 0x00, 0x88])
+
+
+def _is_hvac_label_store(labels) -> bool:
+    return labels is not None and "08-hvac" in str(getattr(labels, "path", "")).lower()
 
 
 def decode_measuring_value(type_byte: int, a: int, b: int) -> dict[str, Any] | None:
@@ -23,6 +28,16 @@ def decode_measuring_value(type_byte: int, a: int, b: int) -> dict[str, Any] | N
     if type_byte == 0x01:
         value = a * 0.2 * b
         return {"value": value, "unit": "rpm", "kind": "engine speed", "text": f"{value:.0f} rpm"}
+
+
+    if type_byte == 0x02:
+        # HVAC percentage-style value used for radiator fan activation, blower
+        # load and Terminal 58d dimming. Live/VCDS examples:
+        #   02 C8 18 -> 9.6 %
+        #   02 C8 4D -> 30.8 %
+        #   02 C8 EC -> 94.4 %
+        value = (a * b) / 500.0
+        return {"value": value, "unit": "%", "kind": "percentage", "text": f"{value:.1f} %"}
 
     if type_byte == 0x05:
         # Common VAG temperature cell used by PQ35 HVAC blocks.  Example from
@@ -68,7 +83,15 @@ def decode_measuring_value(type_byte: int, a: int, b: int) -> dict[str, Any] | N
 
 
 def block_hint(block_num: int, labels=None) -> dict[str, Any]:
-    base = dict(BLOCK_HINTS.get(block_num, {"name": f"Block {block_num:03d}", "confidence": "unknown", "fields": {}}))
+    # Engine measuring blocks and HVAC measuring blocks share the same KWP
+    # transport but not the same label namespace.  If an 08-HVAC label store is
+    # active and a group is not catalogued yet, do not fall back to Engine 01
+    # BLOCK_HINTS; that produced misleading labels such as engine air-mass names
+    # on unknown HVAC groups.
+    if _is_hvac_label_store(labels):
+        base = {"name": f"08 HVAC block {block_num:03d}", "confidence": "unknown-hvac", "fields": {}}
+    else:
+        base = dict(BLOCK_HINTS.get(block_num, {"name": f"Block {block_num:03d}", "confidence": "unknown", "fields": {}}))
     base["fields"] = dict(base.get("fields", {}))
     if labels:
         group_name = labels.group_name(block_num)
@@ -187,6 +210,7 @@ def short_field_label(label: str) -> str:
         "Right Sunlight Intensity G134": "sun right",
         "Turbine Voltage actual": "blower V actual",
         "Turbine Voltage specified": "blower V spec",
+        "Turbine Voltage actual/specified": "blower V",
         "Turbine Load": "blower load",
         "Voltage Terminal 30": "term 30",
         "Voltage Terminal 15": "term 15",
@@ -208,6 +232,9 @@ def field_display(field: dict[str, Any]) -> str:
         return f"partial raw={fmt(field.get('raw', b''))}"
     decoded = field.get("decoded")
     label = field.get("label", "")
+    raw = field.get("raw", b"")
+    if raw == HVAC_STATUS_OFF_FIELD and any(token in label.lower() for token in ("heater", "status", "increase")):
+        return "OFF"
     if decoded:
         if label == "Compressor Shut-Off Code":
             try:

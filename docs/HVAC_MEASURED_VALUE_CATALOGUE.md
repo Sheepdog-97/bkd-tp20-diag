@@ -38,6 +38,8 @@ button/control action
 ## Priority groups
 
 - 001: General / compressor inhibit, engine speed, vehicle speed, standing time
+- 004: Outside temperature unfiltered/regulation, fresh-air intake temperature, coolant temperature
+- 005: Outlet/footwell blower temperatures
 - 006: Evaporator temperature, interior temperature, sunlight sensors
 - 007: Turbine/blower voltage/load and terminal 30 voltage
 - 008: Terminal 15 voltage and dimming terminal 58d
@@ -123,7 +125,7 @@ seeds as useful but not universal across all HVAC variants.
 
 ## Safety boundary
 
-v0.6.1 does not add HVAC control.  It does not send output tests, coding,
+v0.7.2 does not add HVAC control.  It does not send output tests, coding,
 adaptation, basic settings, security access, clear-DTC commands, or replayed
 passive CAN frames.  It only opens the profiled 08 diagnostic channel and reads
 measuring blocks.

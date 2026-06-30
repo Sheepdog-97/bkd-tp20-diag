@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.2
+
+- Corrects 08 Auto HVAC group 004 labels from the VCDS screenshots: outside temperature unfiltered, outside temperature regulation, fresh-air intake temperature, and coolant temperature.
+- Keeps group 005 as the outlet/footwell blower temperature group.
+- No protocol, profile, clear-DTC, coding, adaptation, output-test, basic-settings, control, or CAN-replay changes.
+
+## v0.7.1
+
+- Confirms the Engine 01 profile resolver on both the development BKD/EDC16 path and the captured MED9.5.10 Mk5 Golf path.
+- Adds HVAC formula byte `0x02` decode for percentage-style values used by radiator fan activation, blower load and Terminal 58d dimming.
+- Reclassifies HVAC group 005 as the live-confirmed outlet/footwell temperature group and marks group 004 as unverified/generic until a VCDS capture/photo confirms it.
+- Prevents unknown 08 Auto HVAC groups from falling back to Engine 01 measuring-block labels.
+- Adds conservative `OFF` rendering for HVAC status-style fields that use raw `25 00 88`.
+- Keeps all HVAC work read-only: no clear-DTC, coding, adaptation, basic settings, output tests, control commands, or CAN replay.
+
 ## v0.7.0
 
 - Added a small identity-based Engine 01 profile resolver so future engine-family additions are isolated to profile rules instead of transport/protocol code.
