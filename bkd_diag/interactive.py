@@ -7,6 +7,7 @@ import shutil
 import subprocess
 
 from .commands import run_block, run_clear, run_ident, run_live, run_quick_auto, run_engine_read_auto, run_trace_analysis, run_module_block, run_module_live, run_hvac_catalogue, run_passive_validate
+from .canif import ensure_can_interface
 from .dtc import DtcDatabase, status_bit_text
 from .kwp import decode_negative
 from .labels import LabelStore
@@ -28,7 +29,7 @@ PROVEN_MODULES = ["01", "03", "08", "17", "19", "44", "46"]
 ENGINE_BLOCK_SHORTCUTS = [3, 10, 11]
 
 
-@dataclass(frozen=True)
+@dataclass
 class InteractiveContext:
     iface: str
     session: int
@@ -37,6 +38,9 @@ class InteractiveContext:
     labels: LabelStore | None = None
     bitrate: int = 500000
     log_dir: str = "logs"
+    no_iface_setup: bool = False
+    force_iface_setup: bool = False
+    iface_ready: bool = False
 
 
 def _prompt_choice(prompt: str = "Select") -> str:
@@ -65,6 +69,56 @@ def _status_text(reporter: Reporter, text: str, state: str) -> str:
         return c.red(text)
     return c.dim(text)
 
+
+
+
+def _prompt_yes_no(prompt: str, default_yes: bool = True) -> bool:
+    suffix = "[Y/n]" if default_yes else "[y/N]"
+    raw = input(f"{prompt} {suffix}: ").strip().lower()
+    if not raw:
+        return default_yes
+    return raw in ("y", "yes")
+
+
+def _maybe_prompt_redaction(reporter: Reporter) -> None:
+    if reporter.redact_private:
+        reporter.ok("Private identifier redaction is enabled.")
+        return
+    if _prompt_yes_no("Redact private identifiers in terminal output and logs?", default_yes=True):
+        reporter.redact_private = True
+        reporter.ok("Private identifier redaction enabled for this run.")
+    else:
+        reporter.warn("Private identifier redaction disabled for this run.")
+
+
+def _ensure_live_can(ctx: InteractiveContext, reporter: Reporter) -> None:
+    """Configure the active CAN interface only when a live action actually needs it."""
+    if ctx.iface_ready:
+        return
+    if ctx.no_iface_setup:
+        reporter.warn("Automatic CAN interface setup skipped by --no-iface-setup")
+        ctx.iface_ready = True
+        return
+    reporter.header("CAN interface setup")
+    ensure_can_interface(ctx.iface, ctx.bitrate, reporter, force=ctx.force_iface_setup)
+    ctx.iface_ready = True
+
+
+def _confirm_experimental_module(ctx: InteractiveContext, reporter: Reporter, module: ModuleProfile | None = None) -> bool:
+    if ctx.experimental_module:
+        return True
+    name = f"{module.address} {module.name}" if module else "non-engine module"
+    reporter.header("Experimental non-engine module access")
+    reporter.warn(f"{name} is outside the primary Engine 01 path.")
+    reporter.warn("This build only allows read-only identification, DTC reads, and documented safe measuring blocks here.")
+    reporter.warn("No clear-DTC, coding, adaptation, basic settings, output tests, control, transmit replay, or spoofing will be enabled.")
+    answer = input("Type READ ONLY to enable experimental non-engine access for this menu session: ").strip()
+    if answer != "READ ONLY":
+        reporter.warn("Non-engine module access left disabled.")
+        return False
+    ctx.experimental_module = True
+    reporter.ok("Experimental read-only non-engine access enabled for this menu session.")
+    return True
 
 def _quiet_reporter(reporter: Reporter) -> Reporter:
     # Used by interactive Auto-Scan summary mode. Protocol details are still
@@ -153,12 +207,14 @@ def _is_engine(module: ModuleProfile | None, key: str) -> bool:
 
 
 def _open_engine(ctx: InteractiveContext, reporter: Reporter):
+    _ensure_live_can(ctx, reporter)
     ecu = TP20KWP(iface=ctx.iface, reporter=reporter, logical_address=0x01)
     ecu.open(session=ctx.session, start_session=True)
     return ecu
 
 
 def _open_module(ctx: InteractiveContext, reporter: Reporter, key: str):
+    _ensure_live_can(ctx, reporter)
     logical, module = resolve_module_profile(key)
     open_kwargs = module_open_kwargs(key)
     ecu = TP20KWP(iface=ctx.iface, reporter=reporter, **open_kwargs)
@@ -215,9 +271,8 @@ def _run_module_action(ctx: InteractiveContext, reporter: Reporter, key: str, ac
         raise RuntimeError(f"Unknown module: {key}")
 
     if module.address != "01" and not ctx.experimental_module:
-        reporter.fail("Non-engine active module access is disabled without --experimental-module.")
-        reporter.info("Restart with: --experimental-module start")
-        return
+        if not _confirm_experimental_module(ctx, reporter, module):
+            return
 
     if action == "block" and module.address == "08":
         return _hvac_measuring_blocks(ctx, reporter)
@@ -509,13 +564,13 @@ def _print_module_status(reporter: Reporter, module: ModuleProfile, experimental
     else:
         read_status = c.dim("not profiled")
     if module.address != "01" and not experimental_enabled:
-        read_status += c.dim("; requires --experimental-module")
+        read_status += c.dim("; asks before access")
 
     clear_status = c.green("enabled") if module.address == "01" else c.red("disabled")
     if module.address == "01":
         block_status = c.green("engine live/snapshot")
     elif module.address == "08":
-        block_status = c.green("HVAC read-only") if experimental_enabled else c.dim("HVAC read-only; needs --experimental-module")
+        block_status = c.green("HVAC read-only") if experimental_enabled else c.dim("HVAC read-only; asks before access")
     else:
         block_status = c.yellow("not implemented")
 
@@ -533,7 +588,7 @@ def _select_module(ctx: InteractiveContext, reporter: Reporter) -> None:
         for idx, address in enumerate(PROVEN_MODULES, 1):
             module = find_module(address)
             if module:
-                marker = "" if (address == "01" or ctx.experimental_module) else "  [needs --experimental-module]"
+                marker = "" if (address == "01" or ctx.experimental_module) else "  [asks before access]"
                 number = str(idx)
                 name = reporter.colour.bold(f"{module.address} {module.name}")
                 _menu_item(reporter, number, name, marker.strip() if marker else None)
@@ -595,8 +650,13 @@ def _module_menu(ctx: InteractiveContext, reporter: Reporter, key: str) -> None:
 def _autoscan_read_only(ctx: InteractiveContext, reporter: Reporter) -> None:
     modules = list(PROVEN_MODULES)
     if not ctx.experimental_module:
-        reporter.warn("Autoscan will read Engine 01 only because --experimental-module was not supplied.")
-        modules = ["01"]
+        reporter.warn("Auto-Scan can read Engine 01 only, or include proven non-engine modules after confirmation.")
+        answer = input("Type READ ONLY to include proven non-engine modules, or press Enter for Engine 01 only: ").strip()
+        if answer == "READ ONLY":
+            ctx.experimental_module = True
+            reporter.ok("Including proven read-only non-engine modules for this menu session.")
+        else:
+            modules = ["01"]
     else:
         reporter.warn("Read-only autoscan opens each proven module and reads DTCs. No clears/coding/adaptations are sent.")
         answer = input("Type READ ONLY to continue: ").strip()
@@ -908,8 +968,10 @@ def _capture_tools_menu(ctx: InteractiveContext, reporter: Reporter) -> None:
 def run_interactive_start(ctx: InteractiveContext, reporter: Reporter) -> None:
     reporter.header("Interactive start menu")
     reporter.info("Existing direct CLI commands still work; this menu is a safer wrapper around proven paths.")
+    reporter.info("CAN setup is lazy: offline tools do not touch the interface; live actions configure it when needed.")
+    _maybe_prompt_redaction(reporter)
     if not ctx.experimental_module:
-        reporter.warn("Non-engine modules are visible but disabled until you restart with --experimental-module.")
+        reporter.info("Non-engine modules will ask for read-only confirmation when selected.")
 
     while True:
         reporter.header("Main menu")

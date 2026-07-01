@@ -141,10 +141,12 @@ Engine 01 only:
   live/CSV logging
 ```
 
-Non-engine module commands are refused unless you add `--experimental-module`.
-The profiled 03/08/17/19/44/46 modules have been proven on the development car for
-read-only identification and DTC reads, but they are still not a universal VAG
-compatibility claim.
+Direct non-engine module commands are refused unless you add `--experimental-module`.
+The interactive menu asks for a typed read-only confirmation when you enter a
+non-engine module path, so normal menu startup can stay short. The profiled
+03/08/17/19/44/46 modules have been proven on the development car for read-only
+identification and DTC reads, but they are still not a universal VAG compatibility
+claim.
 
 ABS/ESP can visibly enter diagnostic communication during an active session. From
 v0.3.16 the tool performs a VCDS-like drain/close path for ABS; if ABS/ESP lamps
@@ -177,18 +179,17 @@ See `docs/INSTALL.md` for SocketCAN setup, DSD wiring, and listen-only sniff mod
 ## Interactive start menu
 
 For normal workshop use, start the interactive menu instead of copying individual
-commands from the docs:
+commands from the docs. The menu now starts offline-safe: it does not configure
+`can0` until you choose a live diagnostic/capture action.
 
 ```bash
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 start
+python3 -m bkd_diag.cli start
 ```
 
-To enable the proven non-engine read-only module paths inside the menu, add the
-existing experimental gate:
-
-```bash
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module start
-```
+The menu asks whether to redact private identifiers at startup. Non-engine module
+paths ask for typed read-only confirmation at the moment you enter them, so the
+old normal startup flags are no longer needed for menu use. Use `sudo` only when
+you are about to run live CAN actions and your local SocketCAN permissions require it.
 
 The menu is module-first:
 
@@ -214,24 +215,21 @@ Current interactive scope:
 | Engine 01 read DTCs | Enabled |
 | Engine 01 clear DTCs | Enabled with typed confirmation |
 | Engine 01 measuring block snapshots | Enabled for known/custom groups |
-| 03/08/17/19/44/46 read identification | Enabled with `--experimental-module` |
-| 03/08/17/19/44/46 read DTCs | Enabled with `--experimental-module` |
+| 03/08/17/19/44/46 read identification | Menu asks for read-only confirmation; direct commands still need `--experimental-module` |
+| 03/08/17/19/44/46 read DTCs | Menu asks for read-only confirmation; direct commands still need `--experimental-module` |
 | Non-engine clear DTCs | Disabled in this build |
-| 08 Auto HVAC measuring blocks | Enabled with `--experimental-module`; read-only catalogue/live dashboard |
+| 08 Auto HVAC measuring blocks | Menu asks for read-only confirmation; direct commands still need `--experimental-module`; read-only catalogue/live dashboard |
 | Other non-engine measuring blocks | Disabled until VCDS captures prove labels/behaviour |
 
 Auto-Scan from the menu is concise by default. Start with `--detail` if you want
 the full TP2.0/KWP protocol dialogue during Auto-Scan:
 
 ```bash
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module --detail start
+python3 -m bkd_diag.cli --detail start
 ```
 
-Use `--redact-private` when output/logs may be shared:
-
-```bash
-sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 --experimental-module --redact-private start
-```
+Direct CLI commands still accept `--redact-private` and `--experimental-module` for
+scripting. The interactive menu prompts for those decisions instead.
 
 The original direct CLI commands remain available for scripting and regression
 testing.

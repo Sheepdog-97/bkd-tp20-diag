@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.8.3
+
+- Makes the interactive `start` menu offline-safe by default: it no longer configures `can0` at startup. Live diagnostic actions configure the interface lazily only when selected.
+- Adds an interactive startup prompt for private identifier redaction, so normal menu use no longer needs `--redact-private`.
+- Changes interactive non-engine access from a startup flag requirement to a typed read-only confirmation at the point of access. Direct non-engine CLI commands still require `--experimental-module`.
+- Keeps offline analysis paths (`passive-validate`, `correlate`, `analyse-trace`, passive validation wizard, catalogues and checklists) from touching the CAN interface.
+- Updates README/safety/regression notes for the shorter menu workflow.
+- No protocol, decoder, signal, clear-DTC, coding, adaptation, basic-settings, output-test, transmit, replay, spoofing, or control changes.
+
 ## v0.8.2
 
 - Adds `passive-validate`, a guided offline validation command for known PQ35 infotainment CAN signals.

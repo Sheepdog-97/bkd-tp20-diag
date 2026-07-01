@@ -222,6 +222,24 @@ def verbosity_from_args(args) -> str:
     return "normal"
 
 
+
+
+OFFLINE_ACTIONS = {
+    "analyse-trace", "analyze-trace", "correlate", "passive-validate",
+    "autoscan-summary", "autoscan-faults", "hvac-catalogue", "engine-profiles",
+    "map-blocks", "presets", "vehicle", "module-info", "module-plan",
+    "dtc-template", "label-info",
+}
+
+
+def _action_mode(action: str) -> str:
+    if action in OFFLINE_ACTIONS:
+        return "offline"
+    if action == "start":
+        return "interactive"
+    return "live"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -238,10 +256,16 @@ def main(argv: list[str] | None = None) -> int:
     ecu = None
 
     try:
+        mode = _action_mode(args.action)
         reporter.header("BKD TP2.0/KWP diagnostic tool")
-        reporter.info(f"Interface: {args.iface}")
-        reporter.info(f"Bitrate: {args.bitrate} bit/s")
-        reporter.info("Target: Address 01 Engine / profile-resolved TP2.0/KWP")
+        if mode == "offline":
+            reporter.info("Mode: offline/passive analysis; no CAN interface setup")
+        elif mode == "interactive":
+            reporter.info(f"Mode: interactive; CAN setup is lazy on {args.iface} @ {args.bitrate} bit/s")
+        else:
+            reporter.info(f"Interface: {args.iface}")
+            reporter.info(f"Bitrate: {args.bitrate} bit/s")
+            reporter.info("Target: Address 01 Engine / profile-resolved TP2.0/KWP")
         if logger.path:
             reporter.info(f"Log file: {logger.path}")
 
@@ -382,11 +406,6 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
         if args.action == "start":
-            if not args.no_iface_setup:
-                reporter.header("CAN interface setup")
-                ensure_can_interface(args.iface, args.bitrate, reporter, force=args.force_iface_setup)
-            else:
-                reporter.warn("Automatic CAN interface setup skipped by --no-iface-setup")
             ctx = InteractiveContext(
                 iface=args.iface,
                 session=session,
@@ -395,6 +414,8 @@ def main(argv: list[str] | None = None) -> int:
                 labels=labels,
                 bitrate=args.bitrate,
                 log_dir=args.log_dir,
+                no_iface_setup=args.no_iface_setup,
+                force_iface_setup=args.force_iface_setup,
             )
             run_interactive_start(ctx, reporter)
             return 0

@@ -30,12 +30,12 @@ python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 19
 python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 44
 python3 -m bkd_diag.cli --no-log --no-iface-setup module-info 46
 python3 -m bkd_diag.cli --no-log autoscan-faults
-printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup start
-printf '1\nNO\n\n6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --experimental-module start
-printf '5\n3\n\n5\n6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup start
-printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --redact-private start
-printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --force-colour start
-printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --no-colour start
+printf '\n6\n' | python3 -m bkd_diag.cli --no-log start
+printf '\n1\n\n\n6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup start
+printf '\n5\n3\n\n5\n6\n' | python3 -m bkd_diag.cli --no-log start
+printf '6\n' | python3 -m bkd_diag.cli --no-log --redact-private start
+printf '\n6\n' | python3 -m bkd_diag.cli --no-log --force-colour start
+printf '\n6\n' | python3 -m bkd_diag.cli --no-log --no-colour start
 ```
 
 Trace analyser:
@@ -246,7 +246,7 @@ python3 -m compileall -q bkd_diag
 python3 -m bkd_diag.cli --no-log --no-colour hvac-catalogue 001 009
 python3 -m bkd_diag.cli --no-log --no-colour module-block --help
 python3 -m bkd_diag.cli --no-log --no-colour module-live --help
-printf '6\n' | python3 -m bkd_diag.cli --no-log --no-iface-setup --no-colour start
+printf '\n6\n' | python3 -m bkd_diag.cli --no-log --no-colour start
 ```
 
 On vehicle, read-only only:

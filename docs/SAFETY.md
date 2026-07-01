@@ -17,7 +17,7 @@ Supported engine operations:
 ## Read-only non-engine module scope
 
 ABS, airbag, steering, immobilizer, gateway, cluster, and body modules are safety or
-security relevant. Active non-engine probing is gated with `--experimental-module`.
+security relevant. Active non-engine probing is gated. Direct commands require `--experimental-module`; the interactive menu asks for typed read-only confirmation at the point of access.
 
 The development vehicle now has VCDS-derived and live-tested read-only profiles for:
 
@@ -56,8 +56,12 @@ Engine 01 measuring blocks: allowed
 Non-engine measuring blocks: disabled until VCDS-captured requests are proven
 ```
 
-Starting the menu without `--experimental-module` leaves non-engine active access
-visible but disabled. Use `--redact-private` when logs/output may be shared publicly; live VIN-like identifiers are redacted before they reach terminal output or session logs.
+Starting the menu no longer configures `can0` immediately. Offline analysis and
+passive validation paths stay offline; live diagnostic paths configure the interface
+only when selected. The menu asks for private-identifier redaction at startup and
+asks for typed read-only confirmation before non-engine active access. Direct CLI
+commands still support `--redact-private` and require `--experimental-module` for
+non-engine active module commands.
 
 ## ABS/ESP close behaviour
 
