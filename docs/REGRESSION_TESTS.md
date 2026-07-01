@@ -268,3 +268,19 @@ Expected: 08 Auto HVAC opens using its profiled TP2.0 address, sends only KWP
 colour terminal `module-live` should redraw a dashboard; `--journal` keeps the old
 scrolling output. Unknown formulas remain unresolved/raw rather than being
 presented as proven engineering units.
+
+## Passive correlation smoke test
+
+```bash
+python3 -m compileall -q bkd_diag
+python3 -m bkd_diag.cli --no-log --no-colour correlate --help
+```
+
+With a real CSV/trace pair, first list the available truth fields:
+
+```bash
+python3 -m bkd_diag.cli --no-log --no-colour correlate \
+  --truth logs/bkd_YYYY_live.csv \
+  --can captures/passive_speed_drive.log \
+  --list-truth-fields
+```

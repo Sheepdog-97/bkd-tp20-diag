@@ -16,6 +16,12 @@ from .autoscan import load_autoscan, load_default_autoscan
 from .reporting import CsvLiveLogger, Reporter
 from .utils import ascii_runs, fmt
 from .trace_analyzer import analyse_trace, build_summary, write_summary_json
+from dataclasses import replace
+from .correlate import (
+    correlate_truth_to_can, find_known_signal_offset, list_known_signal_lines,
+    list_truth_field_lines, load_truth_fields, report_markdown_lines,
+    write_report_json, write_report_markdown,
+)
 from .active_autoscan import collect_active_autoscan, render_autoscan_text, write_autoscan_outputs, PROVEN_AUTOSCAN_MODULES
 from .hvac_blocks import HVAC_BLOCKS, hvac_catalogue_lines, hvac_label_store
 from .engine_profiles import collect_engine_identity, engine_profile_lines, read_engine_dtcs_with_profile, resolve_engine_profile_from_identity
@@ -828,6 +834,142 @@ def run_module_live(
         labels=labels,
         dashboard=dashboard,
     )
+
+
+def run_correlate(
+    reporter: Reporter,
+    truth_csv: str,
+    can_trace: str,
+    truth_field: str | None,
+    list_truth_fields: bool = False,
+    list_known_signals: bool = False,
+    known_signal: str | None = None,
+    auto_offset: bool = False,
+    offset_sweep: str | None = None,
+    offset_truth_field: str | None = None,
+    top: int = 20,
+    min_samples: int = 8,
+    window_seconds: float = 0.25,
+    offset_seconds: float = 0.0,
+    can_id: str | None = None,
+    include_bits: bool = False,
+    include_diagnostic_ids: bool = False,
+    json_out: str | None = None,
+    md_out: str | None = None,
+) -> None:
+    reporter.header("Passive CAN correlation")
+    reporter.warn("Candidate finder only: do not use results as proven signals until validated with a second capture.")
+    if list_known_signals:
+        for line in list_known_signal_lines():
+            reporter.line(line)
+        return
+    fields = load_truth_fields(truth_csv)
+    if list_truth_fields:
+        for line in list_truth_field_lines(fields):
+            reporter.line(line)
+        return
+
+    sweep_results = ()
+    alignment_signal_name = None
+    alignment_truth_key = None
+    if auto_offset:
+        if not known_signal:
+            raise ValueError("--auto-offset requires --known-signal, e.g. --known-signal dimmer_470_b2")
+        # Offset alignment intentionally uses the known signal's own truth field
+        # by default, then applies the discovered offset to the target field.
+        signal, align_truth, sweep_results = find_known_signal_offset(
+            truth_csv,
+            can_trace,
+            known_signal,
+            truth_field_query=offset_truth_field,
+            offset_sweep=offset_sweep,
+            window_seconds=window_seconds,
+            min_samples=min_samples,
+            include_diagnostic_ids=include_diagnostic_ids,
+        )
+        alignment_signal_name = signal.name
+        alignment_truth_key = align_truth.key
+        reporter.header("Known-signal timing alignment")
+        reporter.info(f"Known signal: {signal.name} ({signal.description})")
+        reporter.info(f"Alignment truth: {align_truth.key}")
+        if not sweep_results:
+            reporter.warn("No usable offset found for known signal; keeping requested --offset value.")
+        else:
+            best = sweep_results[0]
+            offset_seconds = best.offset_seconds
+            reporter.ok(
+                f"Best offset: {offset_seconds:+.3f}s  "
+                f"corr={best.correlation:+.3f} score={best.score:.3f} rmse={best.rmse_truth:.3g}"
+            )
+            reporter.detail(f"Fit: {best.expression}; raw={best.raw_min:.3g}..{best.raw_max:.3g}; n={best.samples}")
+            for idx, r in enumerate(sweep_results[1:6], start=2):
+                reporter.detail(
+                    f"#{idx} offset {r.offset_seconds:+.3f}s corr={r.correlation:+.3f} "
+                    f"score={r.score:.3f} rmse={r.rmse_truth:.3g}"
+                )
+
+    effective_can_id = can_id
+    if known_signal and not auto_offset and not can_id:
+        # Direct known-signal validation should stay narrow by default.
+        from .correlate import resolve_known_signal
+        sig = resolve_known_signal(known_signal)
+        if sig is not None:
+            effective_can_id = f"0x{sig.can_id:X}"
+
+    report = correlate_truth_to_can(
+        truth_csv,
+        can_trace,
+        truth_field or "",
+        top=top,
+        min_samples=min_samples,
+        window_seconds=window_seconds,
+        offset_seconds=offset_seconds,
+        include_bits=include_bits,
+        include_diagnostic_ids=include_diagnostic_ids,
+        can_id_filter_text=effective_can_id,
+    )
+    if alignment_signal_name or sweep_results:
+        report = replace(
+            report,
+            known_signal=alignment_signal_name or known_signal,
+            known_signal_truth_key=alignment_truth_key,
+            auto_offset_applied=bool(auto_offset and sweep_results),
+            offset_sweep_results=sweep_results,
+        )
+
+    unit = f" {report.truth_unit}" if report.truth_unit else ""
+    reporter.info(f"Truth field: {report.truth_key}{unit}")
+    reporter.info(f"Truth samples: {report.truth_samples_total}")
+    reporter.info(f"CAN frames parsed: {report.can_frames_total}")
+    reporter.info(f"CAN IDs considered: {', '.join(report.can_ids_considered) if report.can_ids_considered else 'none'}")
+    if report.skipped_diagnostic_ids:
+        reporter.info(f"Skipped diagnostic IDs: {', '.join(report.skipped_diagnostic_ids)}")
+    reporter.info(f"Timing: window ±{window_seconds:.3f}s, offset {offset_seconds:+.3f}s")
+
+    for warning in report.warnings:
+        reporter.warn(warning)
+
+    reporter.header("Top candidate signals")
+    if not report.results:
+        reporter.warn("No candidates to show.")
+    else:
+        reporter.line(f"{'#':>2}  {'score':>5}  {'corr':>6}  {'n':>4}  {'CAN':>5}  {'signal':<18}  {'fit'}")
+        for r in report.results:
+            reporter.line(
+                f"{r.rank:>2}  {r.score:>5.3f}  {r.correlation:>+6.3f}  {r.samples:>4}  "
+                f"{r.can_id:>5}  {r.signal:<18}  {r.expression}  "
+                f"raw={r.raw_min:.3g}..{r.raw_max:.3g} rmse={r.rmse_truth:.3g}"
+            )
+
+    if json_out:
+        write_report_json(json_out, report)
+        reporter.ok(f"JSON correlation report written: {json_out}")
+    if md_out:
+        write_report_markdown(md_out, report)
+        reporter.ok(f"Markdown correlation report written: {md_out}")
+
+    if not json_out and not md_out:
+        reporter.info("Use --md-out or --json-out to save a report.")
 
 
 def run_trace_analysis(reporter: Reporter, path: str, show_raw: bool = False, max_events: int = 0, json_out: str | None = None) -> None:

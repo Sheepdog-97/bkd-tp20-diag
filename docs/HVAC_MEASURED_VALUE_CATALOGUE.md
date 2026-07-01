@@ -119,13 +119,21 @@ The first live HVAC test proved a few safe/common measured-value formula bytes:
 0x08  scaled/code value         A * 0.1 * B, label-dependent
 ```
 
-Unknown cells remain raw/unresolved.  Group 007/008 field counts are based on
-the live 08 Auto HVAC payloads seen on the development vehicle; treat label
-seeds as useful but not universal across all HVAC variants.
+Unknown cells remain raw/unresolved.  Group 007/008 labels were corrected from live 08 Auto HVAC payloads on the development vehicle:
+
+```text
+007.F2 = Turbine Voltage specified
+007.F3 = Turbine Load
+007.F4 = Voltage Terminal 30
+008.F3 = Dimming Terminal 58d
+008.F4 = Country / coding value
+```
+
+Treat label seeds as useful but not universal across all HVAC variants.
 
 ## Safety boundary
 
-v0.7.2 does not add HVAC control.  It does not send output tests, coding,
+v0.8.1 does not add HVAC control.  It does not send output tests, coding,
 adaptation, basic settings, security access, clear-DTC commands, or replayed
 passive CAN frames.  It only opens the profiled 08 diagnostic channel and reads
 measuring blocks.

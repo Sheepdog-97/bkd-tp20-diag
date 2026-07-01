@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.8.1
+
+- Adds known passive-signal support for the correlation helper.
+- Adds `--known-signal`, `--list-known-signals`, `--auto-offset`, `--offset-sweep`, and `--offset-truth-field` to `correlate`.
+- Seeds `dimmer_470_b2` as a confirmed timing anchor for PQ35 comfort/infotainment CAN: `0x470 byte[2]` maps dimming Terminal 58d percentage.
+- Seeds `speed_351_b1_candidate`, `speed_527_b1_candidate`, and `blower_3e1_b4_candidate` as validation candidates, not final runtime truth.
+- Adds `data/passive_signals_pq35_seed.json` and `docs/research/pq35_passive_signals.md`.
+- Fixes HVAC group 007/008 field labels: `007.F3` is Turbine Load, `008.F3` is Dimming Terminal 58d, and `008.F4` is Country.
+- Adds correlation warnings for low-range truth fields and weak top candidates.
+
+## v0.8.0
+
+- Adds offline `correlate` command to rank passive CAN signal candidates from diagnostic live CSV truth plus a passive candump trace.
+- Supports listing numeric truth fields from live CSV logs, selecting a truth field by label/key, testing byte/u16/s16 candidates, optional bit candidates for status signals, timing window/offset adjustment, CAN ID filtering, and Markdown/JSON report export.
+- Skips known TP2.0/KWP diagnostic CAN IDs by default so correlation targets passive broadcast traffic rather than the active measuring-block responses that produced the truth CSV.
+- Adds `docs/PASSIVE_CORRELATION.md` workflow for vehicle speed, dimming, terminal state, HVAC status, and other Open MMI candidate signals.
+- Offline analysis only: no CAN transmit, no diagnostic session, no control, no clear-DTC, no coding, no adaptation, no output tests, no basic settings, and no replay.
+
 ## v0.7.2
 
 - Corrects 08 Auto HVAC group 004 labels from the VCDS screenshots: outside temperature unfiltered, outside temperature regulation, fresh-air intake temperature, and coolant temperature.

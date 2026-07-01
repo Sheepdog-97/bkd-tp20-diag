@@ -18,7 +18,7 @@ License: **GPL-3.0-or-later**. See `LICENSE`.
 
 ## Current status
 
-Current package version: **v0.7.2**.
+Current package version: **v0.8.1**.
 
 
 | Area | Status |
@@ -31,6 +31,7 @@ Current package version: **v0.7.2**.
 | Live CSV logging | Working |
 | Engine live measuring-block dashboard | Working in interactive menu |
 | 08 Auto HVAC measured values | Read-only group catalogue/live dashboard working for captured groups |
+| Passive CAN correlation | Offline candidate finder from diagnostic CSV truth + candump trace |
 | 03 ABS Brakes | Read-only active DTC/ID proven; ABS/ESP clean close tested in v0.3.16 |
 | 08 Auto HVAC | Read-only active DTC/ID proven; observed DTC 00229 / 0x00E5 |
 | 17 Instruments | Read-only active DTC/ID proven |
@@ -79,6 +80,39 @@ sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli --iface can0 engine-profile
 Adding another engine family should mean adding one profile entry after a VCDS or
 ODIS capture proves the identity match and DTC-read variant. Do not add guessed
 write/clear/coding behaviour.
+
+## Passive CAN correlation
+
+`correlate` is an offline helper for finding passive CAN signal candidates from
+diagnostic CSV truth. It is the bridge between active workshop diagnostics and a
+passive Open MMI runtime.
+
+Example: use HVAC group 001 vehicle speed as truth and compare it to a passive
+`candump` trace:
+
+```bash
+python3 -m bkd_diag.cli --no-log correlate \
+  --truth logs/bkd_YYYY_live.csv \
+  --truth-field "Vehicle Speed" \
+  --can captures/passive_speed_drive.log \
+  --md-out captures/speed_candidates.md \
+  --json-out captures/speed_candidates.json
+```
+
+List available numeric truth fields first:
+
+```bash
+python3 -m bkd_diag.cli --no-log correlate \
+  --truth logs/bkd_YYYY_live.csv \
+  --can captures/passive_speed_drive.log \
+  --list-truth-fields
+```
+
+The helper skips known TP2.0/KWP diagnostic CAN IDs by default so it does not
+rediscover its own active measuring-block responses. Results are candidates, not
+proof; validate with a second capture before using a signal.
+
+See `docs/PASSIVE_CORRELATION.md`.
 
 ## Safety
 
@@ -171,7 +205,8 @@ Current interactive scope:
 | 03/08/17/19/44/46 read identification | Enabled with `--experimental-module` |
 | 03/08/17/19/44/46 read DTCs | Enabled with `--experimental-module` |
 | Non-engine clear DTCs | Disabled in this build |
-| Non-engine measuring blocks | Not implemented yet; capture VCDS measuring-block traffic first |
+| 08 Auto HVAC measuring blocks | Enabled with `--experimental-module`; read-only catalogue/live dashboard |
+| Other non-engine measuring blocks | Disabled until VCDS captures prove labels/behaviour |
 
 Auto-Scan from the menu is concise by default. Start with `--detail` if you want
 the full TP2.0/KWP protocol dialogue during Auto-Scan:
@@ -433,3 +468,40 @@ CSV remains the full sample history. Add `--journal` for the older scrolling
 sample-by-sample output.
 
 This is read-only diagnostic polling (`21 xx` / `61 xx`) and is intended as an oracle for passive Open MMI signal discovery. It does not add HVAC control, output tests, coding, adaptation, or CAN replay.
+
+
+### Passive correlation timing anchors
+
+Use a known passive signal to align diagnostic CSV time with a passive `candump`
+trace before ranking unknown candidates. For PQ35 comfort/infotainment CAN, the
+seeded dimmer anchor is:
+
+```text
+0x470 byte[2] u8 = dimming Terminal 58d percentage
+```
+
+Example: calculate the offset from the dimmer truth field, then apply it to a
+vehicle-speed search in the same capture pair:
+
+```bash
+python3 -m bkd_diag.cli --no-log correlate \
+  --truth logs/bkd_YYYY_live.csv \
+  --truth-field "001.F3 Vehicle Speed" \
+  --can captures/infotainment_passive_YYYY.log \
+  --known-signal dimmer_470_b2 \
+  --auto-offset \
+  --window 1.0 \
+  --md-out captures/speed_candidates_aligned.md
+```
+
+List seeded signals:
+
+```bash
+python3 -m bkd_diag.cli --no-log correlate \
+  --truth logs/bkd_YYYY_live.csv \
+  --can captures/infotainment_passive_YYYY.log \
+  --list-known-signals
+```
+
+Seeded candidates remain passive research data until validated by a second
+capture with deliberate state changes.

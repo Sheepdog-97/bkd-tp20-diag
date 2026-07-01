@@ -9,7 +9,7 @@ from .commands import (
     run_map_blocks, run_quick, run_read, run_readiness_probe, run_scan_blocks, run_selftest,
     run_list_presets, run_preset, run_vehicle_profile, run_module_info, run_module_probe_plan, run_autoscan_summary, run_autoscan_faults,
     run_engine_check, run_trace_analysis, run_active_autoscan, run_module_block, run_module_live, run_hvac_catalogue,
-    run_engine_profiles, run_engine_profile_detect, run_engine_read_auto, run_quick_auto
+    run_engine_profiles, run_engine_profile_detect, run_engine_read_auto, run_quick_auto, run_correlate
 )
 from .dtc import DtcDatabase
 from .reporting import Colour, CsvLiveLogger, Reporter, RunLogger
@@ -106,6 +106,26 @@ def build_parser() -> argparse.ArgumentParser:
     trace_p.add_argument("--raw", action="store_true", help="Show original candump line for each detected event")
     trace_p.add_argument("--max-events", type=int, default=0, help="Limit displayed events; 0 shows all")
     trace_p.add_argument("--json-out", help="Write machine-readable trace summary JSON")
+
+    corr_p = sub.add_parser("correlate", help="Correlate diagnostic CSV truth against passive candump CAN traffic")
+    corr_p.add_argument("--truth", required=True, help="Live diagnostic CSV from --csv, e.g. HVAC group 001")
+    corr_p.add_argument("--can", required=True, help="Passive candump trace captured at the same time")
+    corr_p.add_argument("--truth-field", help="Truth field label/key, e.g. 'Vehicle Speed' or '001.F3'")
+    corr_p.add_argument("--list-truth-fields", action="store_true", help="List numeric fields available in the truth CSV and exit")
+    corr_p.add_argument("--list-known-signals", action="store_true", help="List seeded passive signal anchors/candidates and exit")
+    corr_p.add_argument("--known-signal", help="Known passive signal to use for validation/auto-offset, e.g. dimmer_470_b2")
+    corr_p.add_argument("--auto-offset", action="store_true", help="Sweep offsets using --known-signal, then apply the best offset to the requested truth field")
+    corr_p.add_argument("--offset-sweep", default="-12:12:0.5", help="Auto-offset sweep START:END:STEP in seconds, default -12:12:0.5")
+    corr_p.add_argument("--offset-truth-field", help="Truth field used for auto-offset; defaults to the known signal's expected field")
+    corr_p.add_argument("--top", type=int, default=20, help="Number of candidate signals to show")
+    corr_p.add_argument("--min-samples", type=int, default=8, help="Minimum aligned samples required per candidate")
+    corr_p.add_argument("--window", type=float, default=0.25, help="Maximum timestamp distance in seconds for aligning CAN to truth")
+    corr_p.add_argument("--offset", type=float, default=0.0, help="Timing offset in seconds: CAN time + offset ~= truth time")
+    corr_p.add_argument("--can-id", help="Optional comma/space-separated CAN IDs to consider, e.g. 0x123,456")
+    corr_p.add_argument("--bits", action="store_true", help="Also test individual bit signals for status fields")
+    corr_p.add_argument("--include-diagnostic-ids", action="store_true", help="Do not skip known TP2.0/KWP diagnostic CAN IDs")
+    corr_p.add_argument("--json-out", help="Write machine-readable correlation report JSON")
+    corr_p.add_argument("--md-out", "--out", help="Write Markdown correlation report")
 
     block_p = sub.add_parser("block", help="Read one measuring block snapshot")
     block_p.add_argument("number", type=parse_int_auto)
@@ -255,6 +275,30 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.action in ("analyse-trace", "analyze-trace"):
             run_trace_analysis(reporter, args.path, show_raw=args.raw, max_events=args.max_events, json_out=args.json_out)
+            return 0
+
+        if args.action == "correlate":
+            run_correlate(
+                reporter,
+                truth_csv=args.truth,
+                can_trace=args.can,
+                truth_field=args.truth_field,
+                list_truth_fields=args.list_truth_fields,
+                list_known_signals=args.list_known_signals,
+                known_signal=args.known_signal,
+                auto_offset=args.auto_offset,
+                offset_sweep=args.offset_sweep,
+                offset_truth_field=args.offset_truth_field,
+                top=args.top,
+                min_samples=args.min_samples,
+                window_seconds=args.window,
+                offset_seconds=args.offset,
+                can_id=args.can_id,
+                include_bits=args.bits,
+                include_diagnostic_ids=args.include_diagnostic_ids,
+                json_out=args.json_out,
+                md_out=args.md_out,
+            )
             return 0
 
         if args.action == "map-blocks":
