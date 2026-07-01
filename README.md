@@ -532,3 +532,17 @@ Validated PQ35 signals currently include:
 
 Unvalidated seeds remain passive research data until validated by a second
 capture with deliberate state changes.
+
+
+## Open MMI export
+
+After a successful passive validation report, generate a reviewable Open MMI comfort-bus overlay:
+
+```bash
+python3 -m bkd_diag.cli --no-log openmmi-export \
+  --validation latest \
+  --out-dir exports/openmmi \
+  --include-speed-duplicates
+```
+
+The export is offline/passive only and targets the PQ35 comfort/infotainment CAN (`can0`, 100 kbit/s, listen-only recommended).

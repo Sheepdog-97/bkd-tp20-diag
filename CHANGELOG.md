@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.9.1
+
+- Adds `openmmi-export`, an offline bridge that turns a passive validation JSON report into reviewable Open MMI overlay files.
+- Exports confirmed passive comfort-bus signals for Open MMI: dimmer percentage, HVAC blower load percentage, and vehicle speed.
+- Supports `--validation latest`, `--out-dir`, `--vehicle-profile`, and `--include-speed-duplicates`.
+- Accepts older v0.8.x validation reports that do not contain explicit bus metadata by inferring the conservative `pq35-infotainment` defaults: `comfort` bus at `100000` bit/s.
+- Writes a Markdown review file plus JSON overlay/signals files under `exports/openmmi/`.
+- Offline/passive export only: no CAN transmit, replay, spoofing, diagnostic session, clear-DTC, coding, adaptation, basic settings, output tests, or control changes.
+
 ## v0.8.4
 
 - Corrects passive Open MMI/tablet bus metadata: validated PQ35 passive signals are on the 100 kbit/s comfort/infotainment CAN, while active TP2.0/KWP diagnostic truth remains on the 500 kbit/s diagnostic CAN.

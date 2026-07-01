@@ -9,7 +9,7 @@ from .commands import (
     run_map_blocks, run_quick, run_read, run_readiness_probe, run_scan_blocks, run_selftest,
     run_list_presets, run_preset, run_vehicle_profile, run_module_info, run_module_probe_plan, run_autoscan_summary, run_autoscan_faults,
     run_engine_check, run_trace_analysis, run_active_autoscan, run_module_block, run_module_live, run_hvac_catalogue,
-    run_engine_profiles, run_engine_profile_detect, run_engine_read_auto, run_quick_auto, run_correlate, run_passive_validate
+    run_engine_profiles, run_engine_profile_detect, run_engine_read_auto, run_quick_auto, run_correlate, run_passive_validate, run_openmmi_export
 )
 from .dtc import DtcDatabase
 from .reporting import Colour, CsvLiveLogger, Reporter, RunLogger
@@ -141,6 +141,12 @@ def build_parser() -> argparse.ArgumentParser:
     pv_p.add_argument("--json-out", help="Write JSON validation report; default auto-named in captures/")
     pv_p.add_argument("--no-report", action="store_true", help="Print summary only; do not write Markdown/JSON reports")
 
+    ommi_p = sub.add_parser("openmmi-export", help="Export validated passive signals as an Open MMI profile overlay")
+    ommi_p.add_argument("--validation", default="latest", help="Passive validation JSON report, or latest")
+    ommi_p.add_argument("--out-dir", default="exports/openmmi", help="Directory for generated Open MMI overlay files")
+    ommi_p.add_argument("--vehicle-profile", default="seat_1p", help="Open MMI vehicle profile name for the overlay metadata")
+    ommi_p.add_argument("--include-speed-duplicates", action="store_true", help="Also export 0x527/0x359 duplicate speed cross-check signals")
+
     block_p = sub.add_parser("block", help="Read one measuring block snapshot")
     block_p.add_argument("number", type=parse_int_auto)
 
@@ -225,7 +231,7 @@ def verbosity_from_args(args) -> str:
 
 
 OFFLINE_ACTIONS = {
-    "analyse-trace", "analyze-trace", "correlate", "passive-validate",
+    "analyse-trace", "analyze-trace", "correlate", "passive-validate", "openmmi-export",
     "autoscan-summary", "autoscan-faults", "hvac-catalogue", "engine-profiles",
     "map-blocks", "presets", "vehicle", "module-info", "module-plan",
     "dtc-template", "label-info",
@@ -360,6 +366,16 @@ def main(argv: list[str] | None = None) -> int:
                 md_out=args.md_out,
                 json_out=args.json_out,
                 write_reports=not args.no_report,
+            )
+            return 0
+
+        if args.action == "openmmi-export":
+            run_openmmi_export(
+                reporter,
+                validation_report=args.validation,
+                out_dir=args.out_dir,
+                include_speed_duplicates=args.include_speed_duplicates,
+                vehicle_profile=args.vehicle_profile,
             )
             return 0
 
