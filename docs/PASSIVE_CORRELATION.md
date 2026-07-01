@@ -201,3 +201,42 @@ The built-in seed catalogue currently includes:
 
 Candidates are not runtime truth. Validate with another capture before adding a
 signal to Open MMI.
+
+## Guided passive validation
+
+From v0.8.2, the common PQ35 Open MMI validation workflow is wrapped by
+`passive-validate`. It finds the timing offset from the confirmed dimmer anchor,
+then validates the known dimmer, blower and speed signals in one report.
+
+```bash
+python3 -m bkd_diag.cli --no-log passive-validate \
+  --truth latest \
+  --can latest \
+  --profile pq35-infotainment
+```
+
+Equivalent explicit form:
+
+```bash
+python3 -m bkd_diag.cli --no-log passive-validate \
+  --truth logs/bkd_YYYY_live.csv \
+  --can captures/infotainment_validation_YYYY.log \
+  --profile pq35-infotainment
+```
+
+The interactive wrapper is under:
+
+```text
+start -> Capture / trace tools -> Passive CAN validation wizard
+```
+
+The profile currently validates:
+
+- `dimmer_470_b2`: `0x470 byte[2]`, dimming Terminal 58d %, raw = percent.
+- `blower_3e1_b4`: `0x3E1 byte[4]`, HVAC blower/turbine load %, raw * 100 / 255.
+- `speed_351_u16le_b1_200`: `0x351 u16le[1:3] / 200`, vehicle speed km/h.
+- `speed_527_u16le_b1_200`: `0x527 u16le[1:3] / 200`, vehicle speed km/h.
+- `speed_359_u16le_b1_200`: `0x359 u16le[1:3] / 200`, vehicle speed km/h.
+
+`passive-validate` writes Markdown and JSON reports to `captures/` by default.
+Use `--no-report` for a terminal summary only.

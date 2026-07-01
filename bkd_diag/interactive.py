@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-from .commands import run_block, run_clear, run_ident, run_live, run_quick_auto, run_engine_read_auto, run_trace_analysis, run_module_block, run_module_live, run_hvac_catalogue
+from .commands import run_block, run_clear, run_ident, run_live, run_quick_auto, run_engine_read_auto, run_trace_analysis, run_module_block, run_module_live, run_hvac_catalogue, run_passive_validate
 from .dtc import DtcDatabase, status_bit_text
 from .kwp import decode_negative
 from .labels import LabelStore
@@ -775,6 +775,99 @@ def _show_capture_checklist(reporter: Reporter) -> None:
     reporter.line("6. Keep captures private; they may include VIN/module serial data.")
 
 
+def _recent_files(patterns: list[str], limit: int = 8) -> list[Path]:
+    found: dict[Path, Path] = {}
+    for pattern in patterns:
+        for path in Path().glob(pattern):
+            if path.is_file():
+                found[path.resolve()] = path
+    return sorted(found.values(), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]
+
+
+def _choose_recent_file(reporter: Reporter, title: str, patterns: list[str], default: str = "latest") -> str | None:
+    files = _recent_files(patterns)
+    reporter.header(title)
+    if files:
+        reporter.info("Press Enter for newest, type a number, or type a custom path.")
+        for idx, path in enumerate(files, start=1):
+            size_kb = path.stat().st_size / 1024.0
+            reporter.line(f"  {idx}. {path}  ({size_kb:.1f} KiB)")
+    else:
+        reporter.warn("No matching files found; type a path manually.")
+    raw = _prompt_choice(f"Path [{default}]")
+    if not raw:
+        return default
+    try:
+        idx = int(raw, 10)
+    except ValueError:
+        return raw
+    if 1 <= idx <= len(files):
+        return str(files[idx - 1])
+    reporter.warn("Invalid selection.")
+    return None
+
+
+def _passive_validation_wizard(ctx: InteractiveContext, reporter: Reporter) -> None:
+    reporter.header("Passive CAN validation wizard")
+    reporter.warn("Offline/passive analysis only. It validates known signals from existing CSV/candump files.")
+    reporter.info("Recommended truth CSV comes from: module-live 08 001 007 008 --csv")
+    reporter.info("Recommended passive capture comes from the Open MMI tablet candump on infotainment CAN.")
+
+    truth = _choose_recent_file(reporter, "Select diagnostic live CSV", [f"{ctx.log_dir}/*_live.csv", "logs/*_live.csv"], default="latest")
+    if not truth:
+        _pause()
+        return
+    can_log = _choose_recent_file(reporter, "Select passive candump log", ["captures/infotainment_validation_*.log", "captures/infotainment_passive_*.log", "captures/passive_*.log", "captures/*.log"], default="latest")
+    if not can_log:
+        _pause()
+        return
+
+    reporter.header("Validation profile")
+    reporter.line("  1. PQ35 infotainment: dimmer + blower + vehicle speed")
+    profile_choice = _prompt_choice("Profile [1]") or "1"
+    if profile_choice not in ("1", "pq35", "pq35-infotainment"):
+        reporter.warn("Only pq35-infotainment is available in this build.")
+        _pause()
+        return
+
+    offset_raw = _prompt_choice("Manual offset seconds, blank = auto from dimmer [auto]")
+    auto_offset = True
+    offset = None
+    if offset_raw:
+        try:
+            offset = float(offset_raw)
+            auto_offset = False
+        except ValueError:
+            reporter.warn("Invalid offset.")
+            _pause()
+            return
+
+    sweep = _prompt_choice("Offset sweep START:END:STEP [-12:12:0.5]") or None
+    window_raw = _prompt_choice("Timing window seconds [1.0]") or "1.0"
+    try:
+        window = float(window_raw)
+    except ValueError:
+        reporter.warn("Invalid timing window.")
+        _pause()
+        return
+
+    try:
+        run_passive_validate(
+            reporter,
+            truth_csv=truth,
+            can_trace=can_log,
+            profile="pq35-infotainment",
+            auto_offset=auto_offset,
+            offset_seconds=offset,
+            offset_sweep=sweep,
+            window_seconds=window,
+            write_reports=True,
+        )
+    except Exception as exc:
+        reporter.fail(str(exc))
+    _pause()
+
+
 def _capture_tools_menu(ctx: InteractiveContext, reporter: Reporter) -> None:
     while True:
         reporter.header("Capture / trace tools")
@@ -782,8 +875,9 @@ def _capture_tools_menu(ctx: InteractiveContext, reporter: Reporter) -> None:
         _menu_item(reporter, "2", "Guided VCDS measuring-block capture")
         _menu_item(reporter, "3", "Analyse existing trace")
         _menu_item(reporter, "4", "Show capture checklist")
-        _menu_item(reporter, "5", f"Restore {ctx.iface} active {ctx.bitrate // 1000}k mode")
-        _menu_item(reporter, "6", "Back")
+        _menu_item(reporter, "5", "Passive CAN validation wizard")
+        _menu_item(reporter, "6", f"Restore {ctx.iface} active {ctx.bitrate // 1000}k mode")
+        _menu_item(reporter, "7", "Back")
         choice = _prompt_choice()
         try:
             if choice == "1":
@@ -799,9 +893,11 @@ def _capture_tools_menu(ctx: InteractiveContext, reporter: Reporter) -> None:
                 _show_capture_checklist(reporter)
                 _pause()
             elif choice == "5":
+                _passive_validation_wizard(ctx, reporter)
+            elif choice == "6":
                 _restore_can_active(ctx, reporter)
                 _pause()
-            elif choice in ("6", "b", "back", "q", "quit"):
+            elif choice in ("7", "b", "back", "q", "quit"):
                 return
             else:
                 reporter.warn("Unknown selection.")

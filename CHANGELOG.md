@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.2
+
+- Adds `passive-validate`, a guided offline validation command for known PQ35 infotainment CAN signals.
+- Adds an interactive `start -> Capture / trace tools -> Passive CAN validation wizard` so the normal workflow no longer requires manually exporting `TRUTH`, `CAN`, and `OFFSET` variables.
+- Promotes validated passive signals from the 2026-07-01 diagnostic/passive validation capture:
+  - `dimmer_470_b2`: `0x470 byte[2]` = Dimming Terminal 58d percentage, raw ≈ percent.
+  - `blower_3e1_b4`: `0x3E1 byte[4]` = HVAC blower/turbine load, raw * 100 / 255.
+  - `speed_351_u16le_b1_200`, `speed_527_u16le_b1_200`, `speed_359_u16le_b1_200`: vehicle speed = `u16le[1:3] / 200 km/h`.
+- Demotes the old `0x351 byte[1]` speed candidate as a low-speed artefact.
+- Updates `data/passive_signals_pq35_seed.json` and `docs/research/pq35_passive_signals.md` with confirmed/candidate status.
+- Still offline/passive only: no CAN transmit, replay, spoofing, diagnostic session, clear-DTC, coding, adaptation, basic settings, output tests, or control.
+
 ## v0.8.1
 
 - Adds known passive-signal support for the correlation helper.

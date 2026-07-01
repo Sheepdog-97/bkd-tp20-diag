@@ -108,6 +108,18 @@ python3 -m bkd_diag.cli --no-log correlate \
   --list-truth-fields
 ```
 
+
+Run the guided validation profile after a paired HVAC live CSV and passive infotainment `candump` capture:
+
+```bash
+python3 -m bkd_diag.cli --no-log passive-validate \
+  --truth latest \
+  --can latest \
+  --profile pq35-infotainment
+```
+
+This finds the timing offset from the confirmed dimmer anchor and validates the known dimmer, blower-load and vehicle-speed signals in one Markdown/JSON report.
+
 The helper skips known TP2.0/KWP diagnostic CAN IDs by default so it does not
 rediscover its own active measuring-block responses. Results are candidates, not
 proof; validate with a second capture before using a signal.
@@ -503,5 +515,11 @@ python3 -m bkd_diag.cli --no-log correlate \
   --list-known-signals
 ```
 
-Seeded candidates remain passive research data until validated by a second
+Validated PQ35 signals currently include:
+
+- `dimmer_470_b2`: `0x470 byte[2]` = dimmer percent.
+- `blower_3e1_b4`: `0x3E1 byte[4]` = HVAC blower/turbine load, `raw * 100 / 255`.
+- `speed_351_u16le_b1_200`, `speed_527_u16le_b1_200`, `speed_359_u16le_b1_200`: vehicle speed, `u16le[1:3] / 200 km/h`.
+
+Unvalidated seeds remain passive research data until validated by a second
 capture with deliberate state changes.

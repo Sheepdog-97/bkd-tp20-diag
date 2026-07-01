@@ -22,6 +22,7 @@ from .correlate import (
     list_truth_field_lines, load_truth_fields, report_markdown_lines,
     write_report_json, write_report_markdown,
 )
+from .passive_validate import run_passive_validate
 from .active_autoscan import collect_active_autoscan, render_autoscan_text, write_autoscan_outputs, PROVEN_AUTOSCAN_MODULES
 from .hvac_blocks import HVAC_BLOCKS, hvac_catalogue_lines, hvac_label_store
 from .engine_profiles import collect_engine_identity, engine_profile_lines, read_engine_dtcs_with_profile, resolve_engine_profile_from_identity

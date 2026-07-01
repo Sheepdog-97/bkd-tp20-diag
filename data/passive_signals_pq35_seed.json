@@ -1,51 +1,87 @@
 {
-  "schema": "bkd_diag.pq35_passive_signals.seed.v1",
-  "scope": "User-observed PQ35 comfort/infotainment CAN seeds for passive Open MMI research",
-  "safety": "Passive/candidate data only. Do not transmit or replay these frames from Open MMI runtime.",
+  "schema": "bkd_diag.pq35_passive_signals.seed.v2",
+  "scope": "User-observed and diagnostic-validated PQ35 comfort/infotainment CAN seeds for passive Open MMI research",
+  "safety": "Passive data only. Do not transmit, spoof or replay these frames from Open MMI runtime.",
+  "validation_summary": {
+    "2026-07-01_validation_capture": {
+      "truth_csv": "HVAC 08 groups 001/007/008 live CSV",
+      "passive_trace": "Open MMI tablet infotainment CAN candump",
+      "offset_anchor": "dimmer_470_b2",
+      "best_offset_seconds": -3.0,
+      "notes": "Dimmer, blower and speed were validated from a deliberate state-change capture. Keep raw captures private."
+    }
+  },
   "signals": [
     {
       "name": "dimmer_470_b2",
-      "status": "confirmed-timing-anchor",
+      "status": "confirmed",
       "can_id": "0x470",
       "byte": 2,
       "type": "u8",
       "unit": "%",
       "formula": "value = raw",
       "truth_field": "008.F3 Dimming Terminal 58d",
-      "notes": "User-observed 0x00..0x64 as 0..100%. Aligned against HVAC truth with corr about +0.992 at offset -6s on 2026-07-01 capture."
+      "validation": "corr +1.000, fit truth ≈ 1.0017*raw - 0.224, raw 30..100, rmse 0.503",
+      "notes": "Preferred timing anchor for paired diagnostic CSV + passive candump captures."
     },
     {
-      "name": "speed_351_b1_candidate",
-      "status": "candidate",
-      "can_id": "0x351",
-      "byte": 1,
-      "type": "u8",
-      "unit": "km/h",
-      "formula": "value ≈ raw * 0.0213",
-      "truth_field": "001.F3 Vehicle Speed",
-      "notes": "Strong low-speed candidate after timing alignment; needs wider 0-30 km/h validation. Byte 0 also carries reverse-state observations."
-    },
-    {
-      "name": "speed_527_b1_candidate",
-      "status": "candidate",
-      "can_id": "0x527",
-      "byte": 1,
-      "type": "u8",
-      "unit": "km/h",
-      "formula": "value ≈ raw * 0.0213",
-      "truth_field": "001.F3 Vehicle Speed",
-      "notes": "Top low-speed correlation in aligned capture; may be a duplicate/derived speed broadcast. Needs validation before runtime use."
-    },
-    {
-      "name": "blower_3e1_b4_candidate",
-      "status": "candidate",
+      "name": "blower_3e1_b4",
+      "status": "confirmed",
       "can_id": "0x3E1",
       "byte": 4,
       "type": "u8",
       "unit": "%",
-      "formula": "value ≈ raw * 100 / 255",
+      "formula": "value = raw * 100 / 255",
       "truth_field": "007.F3 Turbine Load",
-      "notes": "Strong aligned candidate; likely HVAC blower/turbine load. Needs second blower low/mid/high capture."
+      "validation": "corr +0.998, fit truth ≈ 0.397965*raw, raw 0..239, rmse 1.5",
+      "notes": "HVAC blower/turbine load broadcast candidate promoted to confirmed for this PQ35 profile."
+    },
+    {
+      "name": "speed_351_u16le_b1_200",
+      "status": "confirmed",
+      "can_id": "0x351",
+      "bytes": [1, 2],
+      "type": "u16le",
+      "unit": "km/h",
+      "formula": "value = u16le(bytes[1:3]) / 200",
+      "truth_field": "001.F3 Vehicle Speed",
+      "validation": "corr +0.995, raw 0..9450, speed range 0..47 km/h, rmse 1.31",
+      "notes": "Byte 0 also carries reverse-state observations. Prefer the full u16le speed over the deprecated byte[1] low-speed artefact."
+    },
+    {
+      "name": "speed_527_u16le_b1_200",
+      "status": "confirmed",
+      "can_id": "0x527",
+      "bytes": [1, 2],
+      "type": "u16le",
+      "unit": "km/h",
+      "formula": "value = u16le(bytes[1:3]) / 200",
+      "truth_field": "001.F3 Vehicle Speed",
+      "validation": "corr +0.996, raw 1..9450, speed range 0..47 km/h, rmse 1.3",
+      "notes": "Duplicate or related speed broadcast; ranked fractionally above 0x351 in validation."
+    },
+    {
+      "name": "speed_359_u16le_b1_200",
+      "status": "confirmed",
+      "can_id": "0x359",
+      "bytes": [1, 2],
+      "type": "u16le",
+      "unit": "km/h",
+      "formula": "value = u16le(bytes[1:3]) / 200",
+      "truth_field": "001.F3 Vehicle Speed",
+      "validation": "corr +0.995, raw 1..9430, speed range 0..47 km/h, rmse 1.33",
+      "notes": "Duplicate or related speed broadcast. Map frame roles before choosing the Open MMI runtime source."
+    },
+    {
+      "name": "speed_351_b1_candidate",
+      "status": "deprecated-low-speed-artifact",
+      "can_id": "0x351",
+      "byte": 1,
+      "type": "u8",
+      "unit": "km/h",
+      "formula": "do not use",
+      "truth_field": "001.F3 Vehicle Speed",
+      "notes": "Looked plausible over 0..4 km/h but was superseded by u16le(bytes[1:3]) / 200 over 0..47 km/h."
     },
     {
       "name": "handbrake_621_b0_bit5",
@@ -57,13 +93,15 @@
       "states": {"0": "handbrake off", "1": "handbrake on"}
     },
     {
-      "name": "lights_635_b0_bit6",
-      "status": "observed-user-supplied",
+      "name": "illumination_635_b0_candidate",
+      "status": "observed-and-correlated-candidate",
       "can_id": "0x635",
       "byte": 0,
-      "mask": "0x40",
-      "type": "bitmask",
-      "states": {"0": "lights off", "1": "lights on"}
+      "type": "u8",
+      "unit": "%",
+      "formula": "likely value = raw",
+      "truth_field": "008.F3 Dimming Terminal 58d",
+      "notes": "Validation capture showed corr +0.999 against dimmer, raw 30..100. Earlier note treated 0x64 as lights on; this may be illumination level rather than boolean."
     },
     {
       "name": "reverse_351_b0_bit1",

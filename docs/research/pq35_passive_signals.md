@@ -1,47 +1,57 @@
 # PQ35 passive CAN signal seeds
 
-These are user-observed passive comfort/infotainment CAN notes for Open MMI
-research. They are not transmit recipes. Keep runtime passive and profile-gated.
+These are user-observed and diagnostic-validated comfort/infotainment CAN notes
+for Open MMI research. They are not transmit recipes. Keep runtime passive and
+profile-gated.
 
-## Confirmed timing anchor
+## Validation method
 
-| Signal | CAN | Raw | Meaning | Status |
-|---|---:|---|---|---|
-| `dimmer_470_b2` | `0x470` | `byte[2]` | dimming Terminal 58d, `0x00..0x64` = `0..100%` | confirmed timing anchor |
-
-The 2026-07-01 paired diagnostic/passive capture aligned best at `-6.0s` using
-HVAC truth field `008.F3 Dimming Terminal 58d` against `0x470 byte[2]`:
+The 2026-07-01 validation used:
 
 ```text
-corr +0.992
-truth ≈ 1.09*raw - 2.74
-rmse 1.11
+diagnostic truth: 08 Auto HVAC live CSV, groups 001/007/008
+passive trace:    Open MMI tablet candump on infotainment CAN
+alignment anchor: 0x470 byte[2] dimmer percentage
+auto-offset:      -3.000s for the validation capture pair
 ```
 
-Use this known signal to calculate timing offset before blind candidate ranking.
+The validation workflow is now available as:
 
-## Current candidates
+```bash
+python3 -m bkd_diag.cli passive-validate \
+  --truth latest \
+  --can latest \
+  --profile pq35-infotainment
+```
 
-| Signal | CAN | Raw | Candidate meaning | Status |
-|---|---:|---|---|---|
-| `speed_351_b1_candidate` | `0x351` | `byte[1]` | vehicle speed, approx `raw * 0.0213 km/h` | candidate |
-| `speed_527_b1_candidate` | `0x527` | `byte[1]` | vehicle speed/duplicate speed, approx `raw * 0.0213 km/h` | candidate |
-| `blower_3e1_b4_candidate` | `0x3E1` | `byte[4]` | HVAC blower/turbine load, approx `raw * 100/255 %` | candidate |
-
-Validation still needed:
+or interactively:
 
 ```text
-speed:  0 -> 10 -> 20 -> 30 km/h -> stop
-blower: low -> medium -> high -> medium -> low
+start -> Capture / trace tools -> Passive CAN validation wizard
 ```
 
-## User-supplied observed states
+## Confirmed signals for this PQ35 profile
+
+| Signal | CAN | Raw | Meaning | Formula | Validation |
+|---|---:|---|---|---|---|
+| `dimmer_470_b2` | `0x470` | `byte[2]` | Dimming Terminal 58d | `raw %` | corr `+1.000`, raw `30..100`, RMSE `0.503` |
+| `blower_3e1_b4` | `0x3E1` | `byte[4]` | HVAC blower/turbine load | `raw * 100 / 255 %` | corr `+0.998`, raw `0..239`, RMSE `1.5` |
+| `speed_351_u16le_b1_200` | `0x351` | `u16le[1:3]` | vehicle speed | `raw / 200 km/h` | corr `+0.995`, range `0..47 km/h` |
+| `speed_527_u16le_b1_200` | `0x527` | `u16le[1:3]` | vehicle speed duplicate/related | `raw / 200 km/h` | corr `+0.996`, range `0..47 km/h` |
+| `speed_359_u16le_b1_200` | `0x359` | `u16le[1:3]` | vehicle speed duplicate/related | `raw / 200 km/h` | corr `+0.995`, range `0..47 km/h` |
+
+The earlier `0x351 byte[1]` and `0x527 byte[1]` low-speed candidates are now
+**deprecated**. They looked plausible over `0..4 km/h`, but the wider `0..47
+km/h` validation proved the useful speed representation is the 16-bit
+little-endian value over bytes 1-2.
+
+## Observed / candidate states still needing validation
 
 These have been observed manually but need capture-backed validation before they
 become Open MMI runtime signals.
 
 - `0x621 byte[0] bit 5`: handbrake on/off.
-- `0x635 byte[0] bit 6`: lights on/off.
+- `0x635 byte[0]`: likely illumination/dimmer level; validation showed it tracks `30..100%`, so avoid treating it as only a lights-on boolean.
 - `0x351 byte[0] bit 1`: reverse/not reverse.
 - `0x531`: lighting/indicator/brake enum-style state bytes.
 - `0x470`: door/boot/bonnet/bulb-warning and dimmer state bytes.

@@ -9,7 +9,7 @@ from .commands import (
     run_map_blocks, run_quick, run_read, run_readiness_probe, run_scan_blocks, run_selftest,
     run_list_presets, run_preset, run_vehicle_profile, run_module_info, run_module_probe_plan, run_autoscan_summary, run_autoscan_faults,
     run_engine_check, run_trace_analysis, run_active_autoscan, run_module_block, run_module_live, run_hvac_catalogue,
-    run_engine_profiles, run_engine_profile_detect, run_engine_read_auto, run_quick_auto, run_correlate
+    run_engine_profiles, run_engine_profile_detect, run_engine_read_auto, run_quick_auto, run_correlate, run_passive_validate
 )
 from .dtc import DtcDatabase
 from .reporting import Colour, CsvLiveLogger, Reporter, RunLogger
@@ -126,6 +126,20 @@ def build_parser() -> argparse.ArgumentParser:
     corr_p.add_argument("--include-diagnostic-ids", action="store_true", help="Do not skip known TP2.0/KWP diagnostic CAN IDs")
     corr_p.add_argument("--json-out", help="Write machine-readable correlation report JSON")
     corr_p.add_argument("--md-out", "--out", help="Write Markdown correlation report")
+
+    pv_p = sub.add_parser("passive-validate", help="Guided offline passive CAN validation for known Open MMI candidate signals")
+    pv_p.add_argument("--truth", default="latest", help="Diagnostic live CSV, or 'latest' for newest logs/*_live.csv")
+    pv_p.add_argument("--can", default="latest", help="Passive candump log, or 'latest' for newest captures/*.log")
+    pv_p.add_argument("--profile", default="pq35-infotainment", choices=["pq35-infotainment"], help="Validation profile")
+    pv_p.add_argument("--offset", type=float, default=None, help="Manual offset in seconds; disables auto-offset unless --auto-offset is also supplied")
+    pv_p.add_argument("--auto-offset", action="store_true", default=None, help="Find timing offset from the profile's known dimmer anchor")
+    pv_p.add_argument("--no-auto-offset", action="store_true", help="Do not calculate offset; use --offset or 0.0s")
+    pv_p.add_argument("--offset-sweep", default=None, help="Offset sweep START:END:STEP, default -12:12:0.5")
+    pv_p.add_argument("--window", type=float, default=1.0, help="Nearest CAN sample window in seconds")
+    pv_p.add_argument("--min-samples", type=int, default=8)
+    pv_p.add_argument("--md-out", help="Write Markdown validation report; default auto-named in captures/")
+    pv_p.add_argument("--json-out", help="Write JSON validation report; default auto-named in captures/")
+    pv_p.add_argument("--no-report", action="store_true", help="Print summary only; do not write Markdown/JSON reports")
 
     block_p = sub.add_parser("block", help="Read one measuring block snapshot")
     block_p.add_argument("number", type=parse_int_auto)
@@ -298,6 +312,30 @@ def main(argv: list[str] | None = None) -> int:
                 include_diagnostic_ids=args.include_diagnostic_ids,
                 json_out=args.json_out,
                 md_out=args.md_out,
+            )
+            return 0
+
+        if args.action == "passive-validate":
+            auto_offset = True
+            if args.no_auto_offset:
+                auto_offset = False
+            elif args.auto_offset is not None:
+                auto_offset = bool(args.auto_offset)
+            elif args.offset is not None:
+                auto_offset = False
+            run_passive_validate(
+                reporter,
+                truth_csv=args.truth,
+                can_trace=args.can,
+                profile=args.profile,
+                auto_offset=auto_offset,
+                offset_seconds=args.offset,
+                offset_sweep=args.offset_sweep,
+                window_seconds=args.window,
+                min_samples=args.min_samples,
+                md_out=args.md_out,
+                json_out=args.json_out,
+                write_reports=not args.no_report,
             )
             return 0
 

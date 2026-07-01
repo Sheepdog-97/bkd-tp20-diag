@@ -71,44 +71,68 @@ KNOWN_PASSIVE_SIGNALS: dict[str, KnownPassiveSignal] = {
         unit="%",
         scale=1.0,
         default_truth_field="008.F3",
-        status="confirmed-timing-anchor",
-        notes="User-observed: 0x470 byte[2] 0x00..0x64 maps to 0..100% dimmer. Use as the preferred offset anchor.",
+        status="confirmed",
+        notes="Validated as a timing anchor and dimmer percentage: raw 30..100, corr +1.000 in the 2026-07-01 validation capture. Use as the preferred offset anchor.",
     ),
-    "speed_351_b1_candidate": KnownPassiveSignal(
-        name="speed_351_b1_candidate",
-        description="PQ35 vehicle speed low-speed candidate",
-        can_id=0x351,
-        signal_expr="b1",
-        signal_name="byte[1] u8",
-        unit="km/h",
-        scale=0.0213,
-        default_truth_field="001.F3",
-        status="candidate",
-        notes="Aligned capture gave corr about +0.96 over 0..4 km/h. Needs wider speed validation.",
-    ),
-    "speed_527_b1_candidate": KnownPassiveSignal(
-        name="speed_527_b1_candidate",
-        description="PQ35 vehicle speed duplicate/derived candidate",
-        can_id=0x527,
-        signal_expr="b1",
-        signal_name="byte[1] u8",
-        unit="km/h",
-        scale=0.0213,
-        default_truth_field="001.F3",
-        status="candidate",
-        notes="Aligned capture gave corr about +0.97 over 0..4 km/h. Needs wider speed validation and comparison with 0x351.",
-    ),
-    "blower_3e1_b4_candidate": KnownPassiveSignal(
-        name="blower_3e1_b4_candidate",
-        description="PQ35 HVAC blower/turbine load candidate",
+    "blower_3e1_b4": KnownPassiveSignal(
+        name="blower_3e1_b4",
+        description="PQ35 HVAC blower/turbine load percentage",
         can_id=0x3E1,
         signal_expr="b4",
         signal_name="byte[4] u8",
         unit="%",
         scale=100.0 / 255.0,
         default_truth_field="007.F3",
-        status="candidate",
-        notes="Aligned capture gave corr about +0.99; likely raw*100/255. Needs second blower low/mid/high validation.",
+        status="confirmed",
+        notes="Validated against HVAC 007.F3 Turbine Load over 0..95.6%: corr +0.998, raw 0..239, scale close to raw*100/255.",
+    ),
+    "speed_351_u16le_b1_200": KnownPassiveSignal(
+        name="speed_351_u16le_b1_200",
+        description="PQ35 vehicle speed",
+        can_id=0x351,
+        signal_expr="u16le1",
+        signal_name="u16le[1:3]",
+        unit="km/h",
+        scale=1.0 / 200.0,
+        default_truth_field="001.F3",
+        status="confirmed",
+        notes="Validated over 0..47 km/h: speed_kmh = u16le(bytes[1:3]) / 200. 0x351 byte[0] also carries reverse-state observations.",
+    ),
+    "speed_527_u16le_b1_200": KnownPassiveSignal(
+        name="speed_527_u16le_b1_200",
+        description="PQ35 vehicle speed duplicate/related broadcast",
+        can_id=0x527,
+        signal_expr="u16le1",
+        signal_name="u16le[1:3]",
+        unit="km/h",
+        scale=1.0 / 200.0,
+        default_truth_field="001.F3",
+        status="confirmed",
+        notes="Validated over 0..47 km/h: speed_kmh = u16le(bytes[1:3]) / 200. Ranked fractionally above 0x351 in the validation capture.",
+    ),
+    "speed_359_u16le_b1_200": KnownPassiveSignal(
+        name="speed_359_u16le_b1_200",
+        description="PQ35 vehicle speed duplicate/related broadcast",
+        can_id=0x359,
+        signal_expr="u16le1",
+        signal_name="u16le[1:3]",
+        unit="km/h",
+        scale=1.0 / 200.0,
+        default_truth_field="001.F3",
+        status="confirmed",
+        notes="Validated over 0..47 km/h: speed_kmh = u16le(bytes[1:3]) / 200. Treat as a duplicate/related speed broadcast until frame role is mapped.",
+    ),
+    "speed_351_b1_candidate": KnownPassiveSignal(
+        name="speed_351_b1_candidate",
+        description="Deprecated low-speed-only vehicle speed candidate",
+        can_id=0x351,
+        signal_expr="b1",
+        signal_name="byte[1] u8",
+        unit="km/h",
+        scale=0.0213,
+        default_truth_field="001.F3",
+        status="deprecated-low-speed-artifact",
+        notes="Looked plausible over 0..4 km/h, but wider 0..47 km/h validation showed the useful speed value is u16le[1:3]/200.",
     ),
 }
 
@@ -546,6 +570,48 @@ def find_known_signal_offset(
             results.append(result)
     results.sort(key=lambda r: (-r.score, -r.samples, r.rmse_truth, abs(r.offset_seconds)))
     return signal, truth, tuple(results)
+
+
+def evaluate_known_signal_at_offset(
+    truth_csv: str | Path,
+    can_trace: str | Path,
+    known_signal_name: str,
+    *,
+    truth_field_query: str | None = None,
+    offset_seconds: float = 0.0,
+    window_seconds: float = 1.0,
+    min_samples: int = 8,
+    include_diagnostic_ids: bool = False,
+) -> tuple[KnownPassiveSignal, TruthField, KnownSignalOffsetResult | None]:
+    """Evaluate one exact known signal at a fixed offset.
+
+    This is used by the passive validation wizard/report where we already know
+    the expected CAN ID and byte/u16 expression.  It avoids treating other
+    fields in the same CAN frame as equivalent candidates.
+    """
+    signal = resolve_known_signal(known_signal_name)
+    if signal is None:
+        raise ValueError("known signal name is required")
+    fields = load_truth_fields(truth_csv)
+    truth = resolve_truth_field(fields, truth_field_query or signal.default_truth_field)
+    frames = read_trace(can_trace)
+    timed_frames = _normalise_frame_times(frames)
+    series, _, _ = _build_signal_series(
+        timed_frames,
+        include_bits=False,
+        include_diagnostic_ids=include_diagnostic_ids,
+        can_id_filter={signal.can_id},
+    )
+    result = _evaluate_known_signal_offset(
+        truth,
+        signal,
+        series,
+        offset_seconds=offset_seconds,
+        window_seconds=window_seconds,
+        min_samples=min_samples,
+    )
+    return signal, truth, result
+
 
 def correlate_truth_to_can(
     truth_csv: str | Path,
