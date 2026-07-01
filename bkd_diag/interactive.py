@@ -871,19 +871,19 @@ def _passive_validation_wizard(ctx: InteractiveContext, reporter: Reporter) -> N
     reporter.header("Passive CAN validation wizard")
     reporter.warn("Offline/passive analysis only. It validates known signals from existing CSV/candump files.")
     reporter.info("Recommended truth CSV comes from: module-live 08 001 007 008 --csv")
-    reporter.info("Recommended passive capture comes from the Open MMI tablet candump on infotainment CAN.")
+    reporter.info("Recommended passive capture comes from the Open MMI tablet candump on comfort/infotainment CAN at 100 kbit/s.")
 
     truth = _choose_recent_file(reporter, "Select diagnostic live CSV", [f"{ctx.log_dir}/*_live.csv", "logs/*_live.csv"], default="latest")
     if not truth:
         _pause()
         return
-    can_log = _choose_recent_file(reporter, "Select passive candump log", ["captures/infotainment_validation_*.log", "captures/infotainment_passive_*.log", "captures/passive_*.log", "captures/*.log"], default="latest")
+    can_log = _choose_recent_file(reporter, "Select passive candump log", ["captures/comfort_validation_*.log", "captures/comfort_passive_*.log", "captures/infotainment_validation_*.log", "captures/infotainment_passive_*.log", "captures/passive_*.log", "captures/*.log"], default="latest")
     if not can_log:
         _pause()
         return
 
     reporter.header("Validation profile")
-    reporter.line("  1. PQ35 infotainment: dimmer + blower + vehicle speed")
+    reporter.line("  1. PQ35 comfort/infotainment 100k: dimmer + blower + vehicle speed")
     profile_choice = _prompt_choice("Profile [1]") or "1"
     if profile_choice not in ("1", "pq35", "pq35-infotainment"):
         reporter.warn("Only pq35-infotainment is available in this build.")

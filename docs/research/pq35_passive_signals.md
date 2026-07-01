@@ -1,6 +1,6 @@
 # PQ35 passive CAN signal seeds
 
-These are user-observed and diagnostic-validated comfort/infotainment CAN notes
+These are user-observed and diagnostic-validated PQ35 comfort/infotainment CAN notes
 for Open MMI research. They are not transmit recipes. Keep runtime passive and
 profile-gated.
 
@@ -10,9 +10,11 @@ The 2026-07-01 validation used:
 
 ```text
 diagnostic truth: 08 Auto HVAC live CSV, groups 001/007/008
-passive trace:    Open MMI tablet candump on infotainment CAN
+passive trace:    Open MMI tablet candump on comfort/infotainment CAN at 100 kbit/s
 alignment anchor: 0x470 byte[2] dimmer percentage
 auto-offset:      -3.000s for the validation capture pair
+passive bus:      comfort/infotainment CAN, 100 kbit/s
+diagnostic bus:   TP2.0/KWP diagnostic CAN, 500 kbit/s
 ```
 
 The validation workflow is now available as:
@@ -31,6 +33,8 @@ start -> Capture / trace tools -> Passive CAN validation wizard
 ```
 
 ## Confirmed signals for this PQ35 profile
+
+These confirmed signals were validated on the 100 kbit/s comfort/infotainment bus used by the Open MMI tablet. The diagnostic CSV truth came from the separate 500 kbit/s TP2.0/KWP diagnostic side.
 
 | Signal | CAN | Raw | Meaning | Formula | Validation |
 |---|---:|---|---|---|---|

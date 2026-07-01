@@ -72,7 +72,7 @@ KNOWN_PASSIVE_SIGNALS: dict[str, KnownPassiveSignal] = {
         scale=1.0,
         default_truth_field="008.F3",
         status="confirmed",
-        notes="Validated as a timing anchor and dimmer percentage: raw 30..100, corr +1.000 in the 2026-07-01 validation capture. Use as the preferred offset anchor.",
+        notes="Validated as a timing anchor and dimmer percentage: raw 30..100, corr +1.000 in the 2026-07-01 validation capture. Use as the preferred offset anchor on the 100 kbit/s comfort/infotainment bus.",
     ),
     "blower_3e1_b4": KnownPassiveSignal(
         name="blower_3e1_b4",
@@ -84,7 +84,7 @@ KNOWN_PASSIVE_SIGNALS: dict[str, KnownPassiveSignal] = {
         scale=100.0 / 255.0,
         default_truth_field="007.F3",
         status="confirmed",
-        notes="Validated against HVAC 007.F3 Turbine Load over 0..95.6%: corr +0.998, raw 0..239, scale close to raw*100/255.",
+        notes="Validated against HVAC 007.F3 Turbine Load over 0..95.6% on the 100 kbit/s comfort/infotainment bus: corr +0.998, raw 0..239, scale close to raw*100/255.",
     ),
     "speed_351_u16le_b1_200": KnownPassiveSignal(
         name="speed_351_u16le_b1_200",
@@ -138,7 +138,7 @@ KNOWN_PASSIVE_SIGNALS: dict[str, KnownPassiveSignal] = {
 
 
 def list_known_signal_lines() -> list[str]:
-    lines = ["Known / seeded passive signals:"]
+    lines = ["Known / seeded passive signals (PQ35 comfort/infotainment CAN, 100 kbit/s):"]
     for sig in sorted(KNOWN_PASSIVE_SIGNALS.values(), key=lambda item: item.name):
         unit = f" {sig.unit}" if sig.unit else ""
         lines.append(

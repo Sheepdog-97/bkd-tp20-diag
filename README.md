@@ -109,7 +109,7 @@ python3 -m bkd_diag.cli --no-log correlate \
 ```
 
 
-Run the guided validation profile after a paired HVAC live CSV and passive infotainment `candump` capture:
+Run the guided validation profile after a paired HVAC live CSV and passive Open MMI comfort/infotainment `candump` capture. For this project the passive tablet bus is 100 kbit/s; the diagnostic truth side remains 500 kbit/s:
 
 ```bash
 python3 -m bkd_diag.cli --no-log passive-validate \
@@ -119,6 +119,17 @@ python3 -m bkd_diag.cli --no-log passive-validate \
 ```
 
 This finds the timing offset from the confirmed dimmer anchor and validates the known dimmer, blower-load and vehicle-speed signals in one Markdown/JSON report.
+
+Tablet passive capture setup for the Open MMI comfort/infotainment bus:
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 100000 listen-only on
+sudo ip link set can0 up
+
+candump -tz -x can0 | tee captures/comfort_validation_$(date +%Y%m%d_%H%M%S).log
+```
+
 
 The helper skips known TP2.0/KWP diagnostic CAN IDs by default so it does not
 rediscover its own active measuring-block responses. Results are candidates, not
@@ -483,7 +494,7 @@ This is read-only diagnostic polling (`21 xx` / `61 xx`) and is intended as an o
 ### Passive correlation timing anchors
 
 Use a known passive signal to align diagnostic CSV time with a passive `candump`
-trace before ranking unknown candidates. For PQ35 comfort/infotainment CAN, the
+trace before ranking unknown candidates. For PQ35 comfort/infotainment CAN at 100 kbit/s, the
 seeded dimmer anchor is:
 
 ```text
@@ -497,7 +508,7 @@ vehicle-speed search in the same capture pair:
 python3 -m bkd_diag.cli --no-log correlate \
   --truth logs/bkd_YYYY_live.csv \
   --truth-field "001.F3 Vehicle Speed" \
-  --can captures/infotainment_passive_YYYY.log \
+  --can captures/comfort_passive_YYYY.log \
   --known-signal dimmer_470_b2 \
   --auto-offset \
   --window 1.0 \
@@ -509,7 +520,7 @@ List seeded signals:
 ```bash
 python3 -m bkd_diag.cli --no-log correlate \
   --truth logs/bkd_YYYY_live.csv \
-  --can captures/infotainment_passive_YYYY.log \
+  --can captures/comfort_passive_YYYY.log \
   --list-known-signals
 ```
 

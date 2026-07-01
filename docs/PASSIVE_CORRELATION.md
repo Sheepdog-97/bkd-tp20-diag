@@ -5,12 +5,35 @@ CAN signal candidates.
 
 It does **not** inject traffic and it does **not** prove a signal by itself.  It
 compares a numeric live diagnostic CSV field, such as HVAC group 001 vehicle
-speed, with a passive `candump` trace captured at the same time.
+speed, with a passive `candump` trace captured at the same time. For Open MMI/tablet captures in this project, that passive trace is from the 100 kbit/s comfort/infotainment bus.
 
 ```text
 diagnostic CSV truth
   + passive candump
   -> ranked candidate CAN IDs / bytes / scales
+```
+
+
+## Bus split for this project
+
+Keep the diagnostic truth side and Open MMI passive side separate:
+
+```text
+diagnostic truth / bkd_diag live modules:
+  TP2.0/KWP over CAN, 500 kbit/s
+
+Open MMI tablet passive capture / runtime:
+  PQ35 comfort/infotainment CAN, 100 kbit/s, listen-only preferred
+```
+
+For tablet-side passive captures use the 100 kbit/s comfort/infotainment bus:
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 100000 listen-only on
+sudo ip link set can0 up
+
+candump -tz -x can0 | tee captures/comfort_validation_$(date +%Y%m%d_%H%M%S).log
 ```
 
 ## Recommended capture pattern
@@ -25,11 +48,13 @@ sudo PYTHONPATH="$PWD" python3 -m bkd_diag.cli \
   module-live 08 001 --csv
 ```
 
-In another terminal, capture passive broadcast traffic on the bus segment you want
-to map:
+On the tablet or passive side, capture the 100 kbit/s comfort/infotainment bus:
 
 ```bash
-candump -tz -x can0 | tee captures/passive_speed_drive.log
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 100000 listen-only on
+sudo ip link set can0 up
+candump -tz -x can0 | tee captures/comfort_speed_drive.log
 ```
 
 Use a simple repeatable pattern.  For speed, for example:
@@ -51,7 +76,7 @@ workshop/rolling-road setup.
 ```bash
 python3 -m bkd_diag.cli --no-log correlate \
   --truth logs/bkd_YYYY_live.csv \
-  --can captures/passive_speed_drive.log \
+  --can captures/comfort_speed_drive.log \
   --list-truth-fields
 ```
 
@@ -69,7 +94,7 @@ Example fields:
 python3 -m bkd_diag.cli --no-log correlate \
   --truth logs/bkd_YYYY_live.csv \
   --truth-field "Vehicle Speed" \
-  --can captures/passive_speed_drive.log \
+  --can captures/comfort_speed_drive.log \
   --md-out captures/speed_candidates.md \
   --json-out captures/speed_candidates.json
 ```
@@ -152,7 +177,7 @@ List seeded signals:
 ```bash
 python3 -m bkd_diag.cli --no-log correlate \
   --truth logs/bkd_YYYY_live.csv \
-  --can captures/infotainment_passive_YYYY.log \
+  --can captures/comfort_passive_YYYY.log \
   --list-known-signals
 ```
 
@@ -163,7 +188,7 @@ same offset:
 python3 -m bkd_diag.cli --no-log correlate \
   --truth logs/bkd_YYYY_live.csv \
   --truth-field "001.F3 Vehicle Speed" \
-  --can captures/infotainment_passive_YYYY.log \
+  --can captures/comfort_passive_YYYY.log \
   --known-signal dimmer_470_b2 \
   --auto-offset \
   --window 1.0 \
@@ -183,7 +208,7 @@ For direct dimmer validation only:
 python3 -m bkd_diag.cli --no-log correlate \
   --truth logs/bkd_YYYY_live.csv \
   --truth-field "008.F3" \
-  --can captures/infotainment_passive_YYYY.log \
+  --can captures/comfort_passive_YYYY.log \
   --known-signal dimmer_470_b2 \
   --auto-offset \
   --window 1.0 \
@@ -192,19 +217,18 @@ python3 -m bkd_diag.cli --no-log correlate \
 
 ## Seeded candidates
 
-The built-in seed catalogue currently includes:
+The built-in seed catalogue targets the PQ35 comfort/infotainment CAN at 100 kbit/s and currently includes:
 
 - `dimmer_470_b2`: confirmed timing anchor, `0x470 byte[2]`.
-- `speed_351_b1_candidate`: low-speed vehicle-speed candidate, `0x351 byte[1]`.
-- `speed_527_b1_candidate`: duplicate/derived vehicle-speed candidate, `0x527 byte[1]`.
-- `blower_3e1_b4_candidate`: HVAC blower/turbine-load candidate, `0x3E1 byte[4]`.
+- `blower_3e1_b4`: confirmed HVAC blower/turbine-load %, `0x3E1 byte[4]`, `raw * 100 / 255`.
+- `speed_351_u16le_b1_200`, `speed_527_u16le_b1_200`, `speed_359_u16le_b1_200`: confirmed vehicle-speed broadcasts, `u16le[1:3] / 200 km/h`.
+- `speed_351_b1_candidate`: deprecated low-speed artefact; do not use for runtime speed.
 
-Candidates are not runtime truth. Validate with another capture before adding a
-signal to Open MMI.
+Observed seeds that are not marked confirmed remain research data. Validate with another capture before adding a signal to Open MMI runtime.
 
 ## Guided passive validation
 
-From v0.8.2, the common PQ35 Open MMI validation workflow is wrapped by
+From v0.8.2, the common PQ35 Open MMI 100 kbit/s comfort/infotainment validation workflow is wrapped by
 `passive-validate`. It finds the timing offset from the confirmed dimmer anchor,
 then validates the known dimmer, blower and speed signals in one report.
 
@@ -220,7 +244,7 @@ Equivalent explicit form:
 ```bash
 python3 -m bkd_diag.cli --no-log passive-validate \
   --truth logs/bkd_YYYY_live.csv \
-  --can captures/infotainment_validation_YYYY.log \
+  --can captures/comfort_validation_YYYY.log \
   --profile pq35-infotainment
 ```
 

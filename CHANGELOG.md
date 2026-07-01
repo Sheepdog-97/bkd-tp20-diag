@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.4
+
+- Corrects passive Open MMI/tablet bus metadata: validated PQ35 passive signals are on the 100 kbit/s comfort/infotainment CAN, while active TP2.0/KWP diagnostic truth remains on the 500 kbit/s diagnostic CAN.
+- Updates the passive signal seed JSON with explicit bus metadata (`comfort`, `100000` bit/s, listen-only recommended).
+- Updates passive correlation, install, README and research docs to use 100 kbit/s tablet capture examples and `comfort_*` capture filenames.
+- Shows the bus/bitrate in passive validation reports so Open MMI export work targets the right bus.
+- No protocol, decoder, signal formula, CAN transmit, replay, spoofing, clear-DTC, coding, adaptation, basic-settings, output-test, or control changes.
+
 ## v0.8.3
 
 - Makes the interactive `start` menu offline-safe by default: it no longer configures `can0` at startup. Live diagnostic actions configure the interface lazily only when selected.

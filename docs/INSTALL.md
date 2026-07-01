@@ -126,6 +126,27 @@ sudo ip link set can0 type can bitrate 500000
 sudo ip link set can0 up
 ```
 
+## Open MMI tablet passive capture bus
+
+The Open MMI tablet passive captures used for validated PQ35 signals are on the
+comfort/infotainment CAN at **100 kbit/s**, not the 500 kbit/s diagnostic bus.
+Use listen-only mode where the adapter supports it:
+
+```bash
+sudo ip link set can0 down 2>/dev/null || true
+sudo ip link set can0 type can bitrate 100000 listen-only on
+sudo ip link set can0 up
+
+candump -tz -x can0 | tee captures/comfort_validation_$(date +%Y%m%d_%H%M%S).log
+```
+
+Keep this split clear:
+
+```text
+bkd_diag active TP2.0/KWP diagnostics: 500 kbit/s
+Open MMI passive comfort/infotainment capture: 100 kbit/s
+```
+
 ## Log ownership
 
 Commands normally run with `sudo`, but generated local `logs/` files should be handed back to the original sudo user. If you have old root-owned logs from earlier versions, fix them once:

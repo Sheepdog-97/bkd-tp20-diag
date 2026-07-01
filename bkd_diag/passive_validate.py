@@ -48,6 +48,10 @@ class PassiveValidationItem:
 @dataclass(frozen=True)
 class PassiveValidationReport:
     profile: str
+    profile_label: str
+    bus_name: str
+    bus_description: str
+    bus_bitrate: int
     truth_csv: str
     can_trace: str
     generated: str
@@ -117,9 +121,20 @@ PROFILE_CHECKS: dict[str, tuple[PassiveValidationCheck, ...]] = {
     "pq35-infotainment": PQ35_INFOTAINMENT_CHECKS,
 }
 
+PROFILE_METADATA: dict[str, dict[str, object]] = {
+    "pq35-infotainment": {
+        "label": "PQ35 comfort/infotainment",
+        "bus_name": "comfort",
+        "bus_description": "PQ35 comfort/infotainment CAN used by the Open MMI tablet",
+        "bus_bitrate": 100000,
+    },
+}
+
 
 TRUTH_PATTERNS = ("logs/*_live.csv",)
 CAN_PATTERNS = (
+    "captures/comfort_validation_*.log",
+    "captures/comfort_passive_*.log",
     "captures/infotainment_validation_*.log",
     "captures/infotainment_passive_*.log",
     "captures/passive_*.log",
@@ -285,6 +300,10 @@ def build_passive_validation_report(
 
     return PassiveValidationReport(
         profile=profile_key,
+        profile_label=str(PROFILE_METADATA.get(profile, {}).get("label", profile)),
+        bus_name=str(PROFILE_METADATA.get(profile, {}).get("bus_name", "unknown")),
+        bus_description=str(PROFILE_METADATA.get(profile, {}).get("bus_description", "unknown")),
+        bus_bitrate=int(PROFILE_METADATA.get(profile, {}).get("bus_bitrate", 0)),
         truth_csv=str(truth_path),
         can_trace=str(can_path),
         generated=datetime.now().isoformat(timespec="seconds"),
@@ -307,7 +326,8 @@ def validation_markdown_lines(report: PassiveValidationReport) -> list[str]:
         "# Passive CAN validation report",
         "",
         f"Generated: `{report.generated}`",
-        f"Profile: `{report.profile}`",
+        f"Profile: `{report.profile}` ({report.profile_label})",
+        f"Bus: `{report.bus_name}` — {report.bus_description}, `{report.bus_bitrate}` bit/s passive/listen-only",
         f"Truth CSV: `{report.truth_csv}`",
         f"Passive CAN trace: `{report.can_trace}`",
         "",
@@ -364,7 +384,8 @@ def write_validation_json(path: str | Path, report: PassiveValidationReport) -> 
 def print_validation_summary(reporter: Reporter, report: PassiveValidationReport) -> None:
     c = reporter.colour
     reporter.header("Passive validation summary")
-    reporter.info(f"Profile: {report.profile}")
+    reporter.info(f"Profile: {report.profile} ({report.profile_label})")
+    reporter.info(f"Bus: {report.bus_name} / {report.bus_bitrate} bit/s passive")
     reporter.info(f"Truth CSV: {report.truth_csv}")
     reporter.info(f"Passive CAN: {report.can_trace}")
     align = f"offset {report.offset_seconds:+.3f}s via {report.offset_source}"

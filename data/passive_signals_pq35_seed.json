@@ -1,14 +1,14 @@
 {
-  "schema": "bkd_diag.pq35_passive_signals.seed.v2",
+  "schema": "bkd_diag.pq35_passive_signals.seed.v3",
   "scope": "User-observed and diagnostic-validated PQ35 comfort/infotainment CAN seeds for passive Open MMI research",
   "safety": "Passive data only. Do not transmit, spoof or replay these frames from Open MMI runtime.",
   "validation_summary": {
     "2026-07-01_validation_capture": {
       "truth_csv": "HVAC 08 groups 001/007/008 live CSV",
-      "passive_trace": "Open MMI tablet infotainment CAN candump",
+      "passive_trace": "Open MMI tablet comfort/infotainment CAN candump at 100000 bit/s",
       "offset_anchor": "dimmer_470_b2",
       "best_offset_seconds": -3.0,
-      "notes": "Dimmer, blower and speed were validated from a deliberate state-change capture. Keep raw captures private."
+      "notes": "Dimmer, blower and speed were validated from a deliberate state-change capture on the 100 kbit/s comfort/infotainment bus. Keep raw captures private."
     }
   },
   "signals": [
@@ -21,8 +21,10 @@
       "unit": "%",
       "formula": "value = raw",
       "truth_field": "008.F3 Dimming Terminal 58d",
-      "validation": "corr +1.000, fit truth ≈ 1.0017*raw - 0.224, raw 30..100, rmse 0.503",
-      "notes": "Preferred timing anchor for paired diagnostic CSV + passive candump captures."
+      "validation": "corr +1.000, fit truth \u2248 1.0017*raw - 0.224, raw 30..100, rmse 0.503",
+      "notes": "Preferred timing anchor for paired diagnostic CSV + passive candump captures.",
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "blower_3e1_b4",
@@ -33,44 +35,61 @@
       "unit": "%",
       "formula": "value = raw * 100 / 255",
       "truth_field": "007.F3 Turbine Load",
-      "validation": "corr +0.998, fit truth ≈ 0.397965*raw, raw 0..239, rmse 1.5",
-      "notes": "HVAC blower/turbine load broadcast candidate promoted to confirmed for this PQ35 profile."
+      "validation": "corr +0.998, fit truth \u2248 0.397965*raw, raw 0..239, rmse 1.5",
+      "notes": "HVAC blower/turbine load broadcast candidate promoted to confirmed for this PQ35 profile.",
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "speed_351_u16le_b1_200",
       "status": "confirmed",
       "can_id": "0x351",
-      "bytes": [1, 2],
+      "bytes": [
+        1,
+        2
+      ],
       "type": "u16le",
       "unit": "km/h",
       "formula": "value = u16le(bytes[1:3]) / 200",
       "truth_field": "001.F3 Vehicle Speed",
       "validation": "corr +0.995, raw 0..9450, speed range 0..47 km/h, rmse 1.31",
-      "notes": "Byte 0 also carries reverse-state observations. Prefer the full u16le speed over the deprecated byte[1] low-speed artefact."
+      "notes": "Byte 0 also carries reverse-state observations. Prefer the full u16le speed over the deprecated byte[1] low-speed artefact.",
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "speed_527_u16le_b1_200",
       "status": "confirmed",
       "can_id": "0x527",
-      "bytes": [1, 2],
+      "bytes": [
+        1,
+        2
+      ],
       "type": "u16le",
       "unit": "km/h",
       "formula": "value = u16le(bytes[1:3]) / 200",
       "truth_field": "001.F3 Vehicle Speed",
       "validation": "corr +0.996, raw 1..9450, speed range 0..47 km/h, rmse 1.3",
-      "notes": "Duplicate or related speed broadcast; ranked fractionally above 0x351 in validation."
+      "notes": "Duplicate or related speed broadcast; ranked fractionally above 0x351 in validation.",
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "speed_359_u16le_b1_200",
       "status": "confirmed",
       "can_id": "0x359",
-      "bytes": [1, 2],
+      "bytes": [
+        1,
+        2
+      ],
       "type": "u16le",
       "unit": "km/h",
       "formula": "value = u16le(bytes[1:3]) / 200",
       "truth_field": "001.F3 Vehicle Speed",
       "validation": "corr +0.995, raw 1..9430, speed range 0..47 km/h, rmse 1.33",
-      "notes": "Duplicate or related speed broadcast. Map frame roles before choosing the Open MMI runtime source."
+      "notes": "Duplicate or related speed broadcast. Map frame roles before choosing the Open MMI runtime source.",
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "speed_351_b1_candidate",
@@ -81,7 +100,9 @@
       "unit": "km/h",
       "formula": "do not use",
       "truth_field": "001.F3 Vehicle Speed",
-      "notes": "Looked plausible over 0..4 km/h but was superseded by u16le(bytes[1:3]) / 200 over 0..47 km/h."
+      "notes": "Looked plausible over 0..4 km/h but was superseded by u16le(bytes[1:3]) / 200 over 0..47 km/h.",
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "handbrake_621_b0_bit5",
@@ -90,7 +111,12 @@
       "byte": 0,
       "mask": "0x20",
       "type": "bitmask",
-      "states": {"0": "handbrake off", "1": "handbrake on"}
+      "states": {
+        "0": "handbrake off",
+        "1": "handbrake on"
+      },
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "illumination_635_b0_candidate",
@@ -101,7 +127,9 @@
       "unit": "%",
       "formula": "likely value = raw",
       "truth_field": "008.F3 Dimming Terminal 58d",
-      "notes": "Validation capture showed corr +0.999 against dimmer, raw 30..100. Earlier note treated 0x64 as lights on; this may be illumination level rather than boolean."
+      "notes": "Validation capture showed corr +0.999 against dimmer, raw 30..100. Earlier note treated 0x64 as lights on; this may be illumination level rather than boolean.",
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "reverse_351_b0_bit1",
@@ -110,17 +138,36 @@
       "byte": 0,
       "mask": "0x02",
       "type": "bitmask",
-      "states": {"0": "not reverse", "1": "reverse"}
+      "states": {
+        "0": "not reverse",
+        "1": "reverse"
+      },
+      "bus": "comfort",
+      "bitrate": 100000
     },
     {
       "name": "steering_angle_3c3_b0_b1",
       "status": "observed-user-supplied",
       "can_id": "0x3C3",
-      "bytes": [0, 1],
+      "bytes": [
+        0,
+        1
+      ],
       "type": "steering-angle-candidate",
       "unit": "degrees",
       "formula": "counts * 0.04375; byte1 bit7 appears to encode direction",
-      "notes": "Needs formal validation before use. Bytes 5 and 7 likely counter/checksum."
+      "notes": "Needs formal validation before use. Bytes 5 and 7 likely counter/checksum.",
+      "bus": "comfort",
+      "bitrate": 100000
     }
-  ]
+  ],
+  "bus": {
+    "name": "comfort",
+    "description": "PQ35 comfort/infotainment CAN used by the Open MMI tablet",
+    "bitrate": 100000,
+    "interface": "can0",
+    "recommended_mode": "listen-only",
+    "diagnostic_truth_bus": "powertrain/diagnostic CAN at 500000 bit/s",
+    "notes": "The passive Open MMI/tablet capture is on the 100 kbit/s comfort/infotainment bus. Active diagnostic truth captures remain on the 500 kbit/s TP2.0/KWP diagnostic CAN."
+  }
 }
